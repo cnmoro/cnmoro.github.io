@@ -2,58 +2,401 @@
 <html>
 
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Real-Time Pixel Camera</title>
   <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: pan-y;
+    }
+
     body {
       margin: 0;
       overflow: hidden;
       background: #000;
-    }
-
-    #controls {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 10px;
-      color: white;
-      z-index: 100;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     #outputCanvas {
       position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      top: 0;
+      left: 0;
       width: 100vw;
       height: 100vh;
       object-fit: cover;
+    }
+
+    /* Camera button positioned like smartphone camera */
+    #captureButton {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #captureButton:active {
+      transform: translateY(-50%) scale(0.9);
+      background: rgba(200, 200, 200, 0.9);
+    }
+
+    #captureButton::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: red;
+    }
+
+    /* Toggle settings button */
+    #toggleSettings {
+      position: fixed;
+      right: 20px;
+      top: calc(50% - 120px);
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.8);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
+      z-index: 200;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 35px;
+      color: #333;
+    }
+
+    #toggleSettings:active {
+      transform: scale(0.9);
+      background: rgba(200, 200, 200, 0.8);
+    }
+
+    /* Settings controls stacked vertically */
+    #settingsContainer {
+      position: fixed;
+      right: 110px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      z-index: 150;
+      pointer-events: none;
+      transition: opacity 0.3s, transform 0.3s;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    #settingsContainer.hidden {
+      opacity: 0;
+      transform: translateY(-50%) translateX(20px);
+      pointer-events: none;
+    }
+
+    #settingsContainer::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #settingsContainer::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #settingsContainer::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 2px;
+    }
+
+    .setting-control {
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(10px);
+      padding: 12px;
+      border-radius: 10px;
+      min-width: 100px;
+      pointer-events: auto;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .setting-label {
+      color: white;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      opacity: 0.8;
+    }
+
+    .slider-container {
+      position: relative;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .slider-container:active {
+      cursor: grabbing;
+    }
+
+    .slider-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 20px;
+      pointer-events: none;
+    }
+
+    .slider-thumb {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 24px;
+      height: 24px;
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+    }
+
+    .slider-value {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: white;
+      font-size: 11px;
+      font-weight: 500;
+      pointer-events: none;
+    }
+
+    .palette-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .palette-option {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .palette-option:hover {
+      transform: scale(1.1);
+    }
+
+    .palette-option.active {
+      border-color: white;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+
+    .palette-color {
+      flex: 1;
+    }
+
+    .checkbox-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .checkbox-control input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    select {
+      width: 100%;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    select option {
+      background: #222;
+      color: white;
+    }
+
+    .app-title {
+      position: fixed;
+      top: 1.5rem;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 20px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      pointer-events: none;
+      opacity: 0.65;
+      user-select: none;
+    }
+
+    @media (max-width: 768px) {
+      #settingsContainer {
+        right: 90px;
+        gap: 12px;
+      }
+
+      .setting-control {
+        min-width: 160px;
+        padding: 10px;
+      }
+
+      .setting-label {
+        font-size: 9px;
+      }
+
+      .slider-container {
+        height: 28px;
+      }
+
+      .slider-thumb {
+        width: 20px;
+        height: 20px;
+      }
+
+      .slider-value {
+        font-size: 10px;
+      }
+
+      .palette-option {
+        width: 28px;
+        height: 28px;
+      }
+
+      #captureButton {
+        width: 60px;
+        height: 60px;
+      }
+
+      #captureButton::before {
+        width: 42px;
+        height: 42px;
+      }
+
+      #toggleSettings {
+        width: 44px;
+        height: 44px;
+        font-size: 20px;
+        top: calc(50% - 85px);
+      }
+    }
+
+    @media (max-height: 600px) {
+      #settingsContainer {
+        gap: 8px;
+      }
+
+      .setting-control {
+        padding: 8px;
+      }
+
+      .setting-label {
+        font-size: 9px;
+        margin-bottom: 4px;
+      }
+
+      .slider-container {
+        height: 26px;
+      }
+
+      .palette-option {
+        width: 26px;
+        height: 26px;
+      }
     }
   </style>
 </head>
 
 <body>
-  <div id="controls">
-    <select id="cameraSelect"></select>
-    <select id="paletteSelect"></select>
-    <div>
-      <label>Pixel Scale: <input type="range" id="pixelSize" min="4" max="32" value="8"></label>
-    </div>
-    <div>
-      <label>Brightness: <input type="range" id="brightness" min="0" max="2" step="0.1" value="1"></label>
-    </div>
-    <div>
-      <label>Contrast: <input type="range" id="contrast" min="0" max="2" step="0.1" value="1"></label>
-    </div>
-    <div>
-      <label>Soft Focus: <input type="checkbox" id="softFocusToggle"></label>
-    </div>
-    <button id="captureButton">Take Picture</button>
-  </div>
   <canvas id="outputCanvas"></canvas>
+
+  <div class="app-title">cnmoro's pixel camera</div>
+  
+  <button id="toggleSettings">⚙</button>
+  <button id="captureButton"></button>
+  
+  <div id="settingsContainer">
+    <div class="setting-control">
+      <div class="setting-label">Camera</div>
+      <select id="cameraSelect"></select>
+    </div>
+
+    <div class="setting-control">
+      <div class="setting-label">Palette</div>
+      <div class="palette-selector" id="paletteSelector"></div>
+    </div>
+
+    <div class="setting-control">
+      <div class="setting-label">Pixel Scale</div>
+      <div class="slider-container" data-slider="pixelSize" data-min="4" data-max="32" data-value="8">
+        <div class="slider-fill"></div>
+        <div class="slider-thumb"></div>
+        <div class="slider-value">8</div>
+      </div>
+    </div>
+
+    <div class="setting-control">
+      <div class="setting-label">Brightness</div>
+      <div class="slider-container" data-slider="brightness" data-min="0" data-max="2" data-step="0.1" data-value="1">
+        <div class="slider-fill"></div>
+        <div class="slider-thumb"></div>
+        <div class="slider-value">1.0</div>
+      </div>
+    </div>
+
+    <div class="setting-control">
+      <div class="setting-label">Contrast</div>
+      <div class="slider-container" data-slider="contrast" data-min="0" data-max="2" data-step="0.1" data-value="1">
+        <div class="slider-fill"></div>
+        <div class="slider-thumb"></div>
+        <div class="slider-value">1.0</div>
+      </div>
+    </div>
+
+    <div class="setting-control">
+      <label class="checkbox-control">
+        <input type="checkbox" id="softFocusToggle">
+        <span>Soft Focus</span>
+      </label>
+    </div>
+  </div>
 
   <script>
     const palettes = {
+      'none': null,
       'digital-paper': [[245, 245, 245], [145, 163, 170], [76, 86, 113], [5, 5, 5]],
       'eulbink': [[255, 255, 255], [12, 230, 242], [0, 152, 219], [30, 87, 156], [32, 53, 98], [37, 36, 70], [32, 21, 51]],
       'human16': [[204, 121, 167], [213, 94, 0], [230, 159, 0], [240, 228, 66], [0, 158, 115], [86, 180, 233], [0, 114, 178], [101, 77, 115], [0, 0, 0], [174, 179, 184], [255, 255, 255], [43, 35, 28], [76, 52, 42], [143, 109, 69], [175, 146, 113], [228, 208, 181]],
@@ -71,29 +414,146 @@
     const outputCanvas = document.getElementById('outputCanvas');
     const ctx = outputCanvas.getContext('2d');
     let targetWidth = 256;
-    let pixelScale = 5;
+    let pixelScale = 8;
     let selectedPalette = null;
     let brightnessFactor = 1.0;
-    let contrastFactor = 1.3;
+    let contrastFactor = 1.0;
     let softFocusEnabled = false;
 
-    // Reusable canvas for soft focus effect
     const fullSizeCanvas = document.createElement('canvas');
     const fullSizeCtx = fullSizeCanvas.getContext('2d');
 
-    // Function to resize canvas to fill screen
-    function resizeCanvas() {
-      const windowWidth = window.innerWidth;
-      const windowHeight = window.innerHeight;
+    // Drag slider functionality
+    function initSliders() {
+      const sliders = document.querySelectorAll('.slider-container');
       
-      // Set canvas size to window size
-      outputCanvas.width = windowWidth;
-      outputCanvas.height = windowHeight;
+      sliders.forEach(slider => {
+        const min = parseFloat(slider.dataset.min);
+        const max = parseFloat(slider.dataset.max);
+        const step = parseFloat(slider.dataset.step || 1);
+        let value = parseFloat(slider.dataset.value);
+        
+        const fill = slider.querySelector('.slider-fill');
+        const thumb = slider.querySelector('.slider-thumb');
+        const valueDisplay = slider.querySelector('.slider-value');
+        
+        function updateSlider(val) {
+          value = Math.max(min, Math.min(max, val));
+          const percent = ((value - min) / (max - min)) * 100;
+          fill.style.width = percent + '%';
+          thumb.style.left = percent + '%';
+          
+          // Format display value
+          if (step < 1) {
+            valueDisplay.textContent = value.toFixed(1);
+          } else {
+            valueDisplay.textContent = Math.round(value);
+          }
+          
+          // Update actual values
+          const sliderName = slider.dataset.slider;
+          if (sliderName === 'pixelSize') {
+            pixelScale = Math.round(value);
+            targetWidth = Math.max(16, Math.floor(window.innerWidth / pixelScale));
+          } else if (sliderName === 'brightness') {
+            brightnessFactor = value;
+          } else if (sliderName === 'contrast') {
+            contrastFactor = value;
+          }
+        }
+        
+        function handleMove(clientX) {
+          const rect = slider.getBoundingClientRect();
+          const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+          let newValue = min + percent * (max - min);
+          
+          // Snap to step
+          newValue = Math.round(newValue / step) * step;
+          updateSlider(newValue);
+        }
+        
+        let isDragging = false;
+        
+        // Mouse events
+        slider.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          handleMove(e.clientX);
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+          if (isDragging) {
+            handleMove(e.clientX);
+          }
+        });
+        
+        document.addEventListener('mouseup', () => {
+          isDragging = false;
+        });
+        
+        // Touch events
+        slider.addEventListener('touchstart', (e) => {
+          isDragging = true;
+          handleMove(e.touches[0].clientX);
+        });
+        
+        document.addEventListener('touchmove', (e) => {
+          if (isDragging) {
+            handleMove(e.touches[0].clientX);
+            e.preventDefault();
+          }
+        }, { passive: false });
+        
+        document.addEventListener('touchend', () => {
+          isDragging = false;
+        });
+        
+        // Initialize
+        updateSlider(value);
+      });
     }
 
-    // Add resize listener
+    // Palette selector
+    function initPaletteSelector() {
+      const container = document.getElementById('paletteSelector');
+      
+      Object.keys(palettes).forEach(name => {
+        const option = document.createElement('div');
+        option.className = 'palette-option';
+        if (name === 'none') option.classList.add('active');
+        option.dataset.palette = name;
+        
+        const palette = palettes[name];
+        if (palette) {
+          const colorsToShow = palette.slice(0, 4);
+          colorsToShow.forEach(color => {
+            const colorDiv = document.createElement('div');
+            colorDiv.className = 'palette-color';
+            colorDiv.style.background = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+            option.appendChild(colorDiv);
+          });
+        } else {
+          // "None" palette - show gradient
+          option.style.background = 'linear-gradient(45deg, #f00, #0f0, #00f)';
+          option.style.opacity = '0.5';
+        }
+        
+        option.addEventListener('click', () => {
+          document.querySelectorAll('.palette-option').forEach(el => el.classList.remove('active'));
+          option.classList.add('active');
+          selectedPalette = palettes[name];
+        });
+        
+        container.appendChild(option);
+      });
+    }
+
+    function resizeCanvas() {
+      outputCanvas.width = window.innerWidth;
+      outputCanvas.height = window.innerHeight;
+    }
+
     window.addEventListener('resize', resizeCanvas);
-    resizeCanvas(); // Initial resize
+    resizeCanvas();
 
     async function initializeCamera(deviceId) {
       if (currentStream) currentStream.getTracks().forEach(track => track.stop());
@@ -103,7 +563,7 @@
           deviceId: deviceId ? { exact: deviceId } : undefined,
           width: { ideal: 1280 },
           height: { ideal: 720 },
-          facingMode: deviceId ? undefined : 'user'
+          facingMode: deviceId ? undefined : 'environment'
         }
       };
 
@@ -111,8 +571,8 @@
         currentStream = await navigator.mediaDevices.getUserMedia(constraints);
         const video = document.createElement('video');
         video.srcObject = currentStream;
+        video.setAttribute('playsinline', '');
         await video.play();
-
         processVideo(video);
       } catch (error) {
         console.error('Error accessing camera:', error);
@@ -121,21 +581,21 @@
 
     function processVideo(video) {
       const processFrame = () => {
-        if (video.videoWidth === 0) return;
+        if (video.videoWidth === 0) {
+          requestAnimationFrame(processFrame);
+          return;
+        }
 
-        // Calculate scaling to fill screen while maintaining aspect ratio
         const videoAspect = video.videoWidth / video.videoHeight;
         const canvasAspect = outputCanvas.width / outputCanvas.height;
         
         let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
         
         if (videoAspect > canvasAspect) {
-          // Video is wider than canvas
           drawHeight = outputCanvas.height;
           drawWidth = drawHeight * videoAspect;
           offsetX = -(drawWidth - outputCanvas.width) / 2;
         } else {
-          // Video is taller than canvas
           drawWidth = outputCanvas.width;
           drawHeight = drawWidth / videoAspect;
           offsetY = -(drawHeight - outputCanvas.height) / 2;
@@ -146,7 +606,6 @@
         tempCanvas.width = targetWidth;
         tempCanvas.height = Math.round(targetWidth / videoAspect);
 
-        // Apply soft focus if enabled
         if (softFocusEnabled) {
           fullSizeCanvas.width = video.videoWidth;
           fullSizeCanvas.height = video.videoHeight;
@@ -157,32 +616,26 @@
           tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
         }
 
-        // Apply brightness/contrast
         const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
         const data = imageData.data;
 
         for (let i = 0; i < data.length; i += 4) {
-          // Brightness
           let r = data[i] * brightnessFactor;
           let g = data[i + 1] * brightnessFactor;
           let b = data[i + 2] * brightnessFactor;
 
-          // Contrast
           r = (r - 128) * contrastFactor + 128;
           g = (g - 128) * contrastFactor + 128;
           b = (b - 128) * contrastFactor + 128;
 
-          // Clamp values
           data[i] = Math.min(255, Math.max(0, r));
           data[i + 1] = Math.min(255, Math.max(0, g));
           data[i + 2] = Math.min(255, Math.max(0, b));
         }
 
-        // Quantize colors
         quantizeColors(data, selectedPalette);
         tempCtx.putImageData(imageData, 0, 0);
 
-        // Clear canvas and draw the processed frame
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
         
@@ -218,7 +671,6 @@
           data[i + 1] = closestColor[1];
           data[i + 2] = closestColor[2];
         } else {
-          // Uniform quantization (64 colors)
           r = Math.round(r / 85) * 85;
           g = Math.round(g / 85) * 85;
           b = Math.round(b / 85) * 85;
@@ -229,65 +681,52 @@
       }
     }
 
-    // Camera selection handling
     async function populateCameras() {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
       const select = document.getElementById('cameraSelect');
 
       select.innerHTML = videoDevices
-        .map(device => `<option value="${device.deviceId}">${device.label || 'Camera'}</option>`)
+        .map((device, i) => `<option value="${device.deviceId}">${device.label || `Camera ${i + 1}`}</option>`)
         .join('');
 
       select.addEventListener('change', () => initializeCamera(select.value));
     }
 
-    // Palette selection handling
-    function populatePalettes() {
-      const select = document.getElementById('paletteSelect');
-      select.innerHTML = '<option value="none">no palette</option>' +
-        Object.keys(palettes)
-          .map(name => `<option value="${name}">${name}</option>`)
-          .join('');
-
-      select.addEventListener('change', () => {
-        selectedPalette = select.value === 'none' ? null : palettes[select.value];
-      });
-    }
-
-    document.getElementById('pixelSize').addEventListener('input', (e) => {
-      pixelScale = parseInt(e.target.value);
-      targetWidth = Math.max(16, Math.floor(window.innerWidth / pixelScale));
+    document.getElementById('softFocusToggle').addEventListener('change', (e) => {
+      softFocusEnabled = e.target.checked;
     });
-
-    document.getElementById('brightness').addEventListener('input', (e) => {
-      brightnessFactor = parseFloat(e.target.value);
-    });
-
-    document.getElementById('contrast').addEventListener('input', (e) => {
-      contrastFactor = parseFloat(e.target.value);
-    });
-
-    // Initialize
-    populatePalettes();
-    populateCameras();
-    initializeCamera();
-
-    // Handle camera changes
-    navigator.mediaDevices.addEventListener('devicechange', populateCameras);
 
     document.getElementById('captureButton').addEventListener('click', () => {
-      const canvas = document.getElementById('outputCanvas');
       const link = document.createElement('a');
-      link.href = canvas.toDataURL('image/png');
-      link.download = 'captured_image.png';
+      link.href = outputCanvas.toDataURL('image/png');
+      link.download = `pixel-camera-${Date.now()}.png`;
       link.click();
     });
 
-    // Add soft focus toggle handler
-    document.getElementById('softFocusToggle').addEventListener('change', function (e) {
-      softFocusEnabled = e.target.checked;
+    // Toggle settings visibility
+    const toggleButton = document.getElementById('toggleSettings');
+    const settingsContainer = document.getElementById('settingsContainer');
+    let settingsVisible = true;
+
+    toggleButton.addEventListener('click', () => {
+      settingsVisible = !settingsVisible;
+      if (settingsVisible) {
+        settingsContainer.classList.remove('hidden');
+        toggleButton.textContent = '⚙';
+      } else {
+        settingsContainer.classList.add('hidden');
+        toggleButton.textContent = '⚙';
+      }
     });
+
+    // Initialize everything
+    initSliders();
+    initPaletteSelector();
+    populateCameras();
+    initializeCamera();
+
+    navigator.mediaDevices.addEventListener('devicechange', populateCameras);
   </script>
 </body>
 </html>
