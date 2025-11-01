@@ -8,6 +8,7 @@
     * {
       -webkit-tap-highlight-color: transparent;
       touch-action: pan-y;
+      box-sizing: border-box;
     }
 
     body {
@@ -15,36 +16,43 @@
       overflow: hidden;
       background: #000;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
 
     #outputCanvas {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
+      flex: 1;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
+      display: block;
     }
 
-    /* Camera button positioned like smartphone camera */
-    #captureButton {
+    /* Portrait mode controls (default) */
+    #captureButton,
+    #toggleSettings,
+    #fullscreenButton {
       position: fixed;
-      right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 70px;
-      height: 70px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.9);
-      border: 4px solid rgba(255, 255, 255, 0.3);
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      bottom: 30px;
       z-index: 200;
       cursor: pointer;
       transition: all 0.2s;
+      border-radius: 50%;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
+    }
+
+    #captureButton {
+      left: 50%;
+      transform: translateX(-50%);
+      width: 70px;
+      height: 70px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 4px solid rgba(255, 255, 255, 0.3);
     }
 
     #captureButton:active {
-      transform: translateY(-50%) scale(0.9);
+      transform: translateX(-50%) scale(0.9);
       background: rgba(200, 200, 200, 0.9);
     }
 
@@ -60,24 +68,16 @@
       background: red;
     }
 
-    /* Toggle settings button */
     #toggleSettings {
-      position: fixed;
       right: 20px;
-      top: calc(50% - 120px);
-      width: 70px;
-      height: 70px;
-      border-radius: 50%;
+      width: 50px;
+      height: 50px;
       background: rgba(255, 255, 255, 0.8);
       border: 2px solid rgba(255, 255, 255, 0.3);
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
-      z-index: 200;
-      cursor: pointer;
-      transition: all 0.2s;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 35px;
+      font-size: 24px;
       color: #333;
     }
 
@@ -86,65 +86,189 @@
       background: rgba(200, 200, 200, 0.8);
     }
 
-    /* Settings controls stacked vertically */
+    #fullscreenButton {
+      left: 20px;
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #333;
+    }
+
+    #fullscreenButton:active {
+      transform: scale(0.9);
+      background: rgba(200, 200, 200, 0.8);
+    }
+
+    /* Landscape mode adjustments */
+    @media (orientation: landscape) {
+      /* Move controls to right side */
+      #captureButton,
+      #toggleSettings,
+      #fullscreenButton {
+        bottom: auto;
+        left: auto;
+        right: 20px;
+        transform: translateY(-50%);
+      }
+      
+      #captureButton {
+        top: 50%;
+        width: 60px;
+        height: 60px;
+      }
+      
+      #captureButton::before {
+        width: 42px;
+        height: 42px;
+      }
+      
+      #toggleSettings {
+        top: calc(50% - 80px);
+        width: 44px;
+        height: 44px;
+        font-size: 20px;
+      }
+      
+      #fullscreenButton {
+        top: calc(50% + 80px);
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+      }
+    }
+
+    /* Settings controls */
     #settingsContainer {
       position: fixed;
-      right: 110px;
-      top: 50%;
-      transform: translateY(-50%);
+      z-index: 250; /* Higher than action buttons */
+      background: rgba(10, 10, 15, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      gap: 5px;
-      z-index: 150;
-      pointer-events: none;
-      transition: opacity 0.3s, transform 0.3s;
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-
-    #settingsContainer.hidden {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      /* Ensure it's completely hidden when not visible */
+      visibility: hidden;
       opacity: 0;
-      transform: translateY(-50%) translateX(20px);
-      pointer-events: none;
     }
 
-    #settingsContainer::-webkit-scrollbar {
-      width: 4px;
+    /* Portrait settings panel */
+    #settingsContainer.portrait {
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      max-height: 60vh;
+      border-top-left-radius: 24px;
+      border-top-right-radius: 24px;
+      transform: translateY(100%);
+      transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+                  visibility 0.4s, opacity 0.4s;
     }
 
-    #settingsContainer::-webkit-scrollbar-track {
-      background: transparent;
+    #settingsContainer.portrait.visible {
+      transform: translateY(0);
+      visibility: visible;
+      opacity: 1;
     }
 
-    #settingsContainer::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.3);
-      border-radius: 2px;
+    /* Landscape settings panel */
+    #settingsContainer.landscape {
+      top: 50%;
+      right: -280px; /* Start completely off-screen to the right */
+      width: 280px;
+      max-height: 80vh;
+      border-radius: 16px;
+      transform: translateY(-50%);
+      transition: right 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+                  visibility 0.4s, opacity 0.4s;
+    }
+
+    #settingsContainer.landscape.visible {
+      right: 20px; /* Slide in to 20px from right edge */
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .settings-header {
+      padding: 16px 20px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .settings-title {
+      color: white;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    #closeSettings {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    #closeSettings:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .settings-content {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
     }
 
     .setting-control {
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(10px);
-      padding: 12px;
-      border-radius: 10px;
-      min-width: 100px;
-      pointer-events: auto;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      background: rgba(30, 30, 40, 0.6);
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
 
     .setting-label {
       color: white;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 6px;
-      opacity: 0.8;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+    }
+
+    .setting-label::before {
+      content: "";
+      display: inline-block;
+      width: 4px;
+      height: 16px;
+      background: #4a90e2;
+      border-radius: 2px;
+      margin-right: 10px;
     }
 
     .slider-container {
       position: relative;
-      height: 32px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
       cursor: grab;
       user-select: none;
     }
@@ -158,7 +282,7 @@
       left: 0;
       top: 0;
       height: 100%;
-      background: rgba(255, 255, 255, 0.3);
+      background: #4a90e2;
       border-radius: 20px;
       pointer-events: none;
     }
@@ -167,8 +291,8 @@
       position: absolute;
       top: 50%;
       transform: translate(-50%, -50%);
-      width: 24px;
-      height: 24px;
+      width: 28px;
+      height: 28px;
       background: white;
       border-radius: 50%;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -177,26 +301,26 @@
 
     .slider-value {
       position: absolute;
-      right: 10px;
+      right: 12px;
       top: 50%;
       transform: translateY(-50%);
       color: white;
-      font-size: 11px;
-      font-weight: 500;
+      font-size: 14px;
+      font-weight: 600;
       pointer-events: none;
     }
 
     .palette-selector {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 6px;
+      gap: 10px;
+      margin-top: 10px;
     }
 
     .palette-option {
-      width: 32px;
-      height: 32px;
-      border-radius: 6px;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
       cursor: pointer;
       border: 2px solid transparent;
       transition: all 0.2s;
@@ -220,27 +344,35 @@
     .checkbox-control {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
       color: white;
-      font-size: 11px;
+      font-size: 14px;
       cursor: pointer;
+      padding: 8px 0;
     }
 
     .checkbox-control input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       cursor: pointer;
+      accent-color: #4a90e2;
     }
 
     select {
       width: 100%;
-      padding: 8px;
-      background: rgba(255, 255, 255, 0.1);
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.15);
       border: 1px solid rgba(255, 255, 255, 0.2);
       color: white;
-      border-radius: 6px;
-      font-size: 11px;
+      border-radius: 8px;
+      font-size: 14px;
       cursor: pointer;
+      appearance: none;
+      background-image: url("image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 16px;
+      padding-right: 40px;
     }
 
     select option {
@@ -250,91 +382,79 @@
 
     .app-title {
       position: fixed;
-      top: 1.5rem;
+      top: 20px;
       left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 20px;
+      transform: translateX(-50%);
+      font-size: 18px;
       font-weight: bold;
       color: white;
       text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
       z-index: 100;
       pointer-events: none;
-      opacity: 0.65;
+      opacity: 0.7;
       user-select: none;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px 12px;
+      border-radius: 20px;
     }
 
-    @media (max-width: 768px) {
-      #settingsContainer {
-        right: 90px;
-        gap: 12px;
-      }
+    /* Scrollbar styling */
+    .settings-content::-webkit-scrollbar {
+      width: 6px;
+    }
 
-      .setting-control {
-        min-width: 160px;
-        padding: 10px;
-      }
+    .settings-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
 
-      .setting-label {
-        font-size: 9px;
-      }
+    .settings-content::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+    }
 
-      .slider-container {
-        height: 28px;
-      }
-
-      .slider-thumb {
-        width: 20px;
-        height: 20px;
-      }
-
-      .slider-value {
-        font-size: 10px;
-      }
-
-      .palette-option {
-        width: 28px;
-        height: 28px;
-      }
-
+    /* Responsive adjustments for larger screens */
+    @media (min-width: 769px) and (orientation: portrait) {
       #captureButton {
+        bottom: 40px;
+        width: 80px;
+        height: 80px;
+      }
+      
+      #captureButton::before {
         width: 60px;
         height: 60px;
       }
-
-      #captureButton::before {
-        width: 42px;
-        height: 42px;
-      }
-
-      #toggleSettings {
-        width: 44px;
-        height: 44px;
-        font-size: 20px;
-        top: calc(50% - 85px);
+      
+      #toggleSettings, #fullscreenButton {
+        bottom: 40px;
+        width: 60px;
+        height: 60px;
+        font-size: 28px;
       }
     }
 
-    @media (max-height: 600px) {
-      #settingsContainer {
-        gap: 8px;
+    @media (max-height: 600px) and (orientation: portrait) {
+      #settingsContainer.portrait {
+        max-height: 50vh;
       }
-
+      
       .setting-control {
-        padding: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
       }
-
-      .setting-label {
-        font-size: 9px;
-        margin-bottom: 4px;
-      }
-
+      
       .slider-container {
-        height: 26px;
+        height: 36px;
       }
-
+      
+      .slider-thumb {
+        width: 24px;
+        height: 24px;
+      }
+      
       .palette-option {
-        width: 26px;
-        height: 26px;
+        width: 36px;
+        height: 36px;
       }
     }
   </style>
@@ -345,52 +465,59 @@
 
   <div class="app-title">cnmoro's pixel camera</div>
   
-  <button id="toggleSettings">⚙</button>
+  <button id="fullscreenButton">⛶</button>
   <button id="captureButton"></button>
+  <button id="toggleSettings">⚙</button>
   
-  <div id="settingsContainer">
-    <div class="setting-control">
-      <div class="setting-label">Camera</div>
-      <select id="cameraSelect"></select>
+  <div id="settingsContainer" class="portrait">
+    <div class="settings-header">
+      <div class="settings-title">Camera Settings</div>
+      <button id="closeSettings">✕</button>
     </div>
-
-    <div class="setting-control">
-      <div class="setting-label">Palette</div>
-      <div class="palette-selector" id="paletteSelector"></div>
-    </div>
-
-    <div class="setting-control">
-      <div class="setting-label">Pixel Scale</div>
-      <div class="slider-container" data-slider="pixelSize" data-min="4" data-max="32" data-value="8">
-        <div class="slider-fill"></div>
-        <div class="slider-thumb"></div>
-        <div class="slider-value">8</div>
+    <div class="settings-content">
+      <div class="setting-control">
+        <div class="setting-label">Camera</div>
+        <select id="cameraSelect"></select>
       </div>
-    </div>
 
-    <div class="setting-control">
-      <div class="setting-label">Brightness</div>
-      <div class="slider-container" data-slider="brightness" data-min="0" data-max="2" data-step="0.1" data-value="1">
-        <div class="slider-fill"></div>
-        <div class="slider-thumb"></div>
-        <div class="slider-value">1.0</div>
+      <div class="setting-control">
+        <div class="setting-label">Palette</div>
+        <div class="palette-selector" id="paletteSelector"></div>
       </div>
-    </div>
 
-    <div class="setting-control">
-      <div class="setting-label">Contrast</div>
-      <div class="slider-container" data-slider="contrast" data-min="0" data-max="2" data-step="0.1" data-value="1">
-        <div class="slider-fill"></div>
-        <div class="slider-thumb"></div>
-        <div class="slider-value">1.0</div>
+      <div class="setting-control">
+        <div class="setting-label">Pixel Scale</div>
+        <div class="slider-container" data-slider="pixelSize" data-min="4" data-max="32" data-value="8">
+          <div class="slider-fill"></div>
+          <div class="slider-thumb"></div>
+          <div class="slider-value">8</div>
+        </div>
       </div>
-    </div>
 
-    <div class="setting-control">
-      <label class="checkbox-control">
-        <input type="checkbox" id="softFocusToggle">
-        <span>Soft Focus</span>
-      </label>
+      <div class="setting-control">
+        <div class="setting-label">Brightness</div>
+        <div class="slider-container" data-slider="brightness" data-min="0" data-max="2" data-step="0.1" data-value="1">
+          <div class="slider-fill"></div>
+          <div class="slider-thumb"></div>
+          <div class="slider-value">1.0</div>
+        </div>
+      </div>
+
+      <div class="setting-control">
+        <div class="setting-label">Contrast</div>
+        <div class="slider-container" data-slider="contrast" data-min="0" data-max="2" data-step="0.1" data-value="1">
+          <div class="slider-fill"></div>
+          <div class="slider-thumb"></div>
+          <div class="slider-value">1.0</div>
+        </div>
+      </div>
+
+      <div class="setting-control">
+        <label class="checkbox-control">
+          <input type="checkbox" id="softFocusToggle">
+          <span>Soft Focus</span>
+        </label>
+      </div>
     </div>
   </div>
 
@@ -419,9 +546,33 @@
     let brightnessFactor = 1.0;
     let contrastFactor = 1.0;
     let softFocusEnabled = false;
+    let isLandscape = false;
 
     const fullSizeCanvas = document.createElement('canvas');
     const fullSizeCtx = fullSizeCanvas.getContext('2d');
+
+    // Check orientation and update layout
+    function updateOrientation() {
+      const isNowLandscape = window.matchMedia("(orientation: landscape)").matches;
+      
+      if (isNowLandscape !== isLandscape) {
+        isLandscape = isNowLandscape;
+        const settingsContainer = document.getElementById('settingsContainer');
+        
+        // Remove both classes first
+        settingsContainer.classList.remove('portrait', 'landscape');
+        
+        // Add the appropriate class
+        if (isLandscape) {
+          settingsContainer.classList.add('landscape');
+        } else {
+          settingsContainer.classList.add('portrait');
+        }
+        
+        // Hide settings when orientation changes
+        settingsContainer.classList.remove('visible');
+      }
+    }
 
     // Drag slider functionality
     function initSliders() {
@@ -552,8 +703,12 @@
       outputCanvas.height = window.innerHeight;
     }
 
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      updateOrientation();
+    });
     resizeCanvas();
+    updateOrientation();
 
     async function initializeCamera(deviceId) {
       if (currentStream) currentStream.getTracks().forEach(track => track.stop());
@@ -706,17 +861,45 @@
 
     // Toggle settings visibility
     const toggleButton = document.getElementById('toggleSettings');
+    const closeSettings = document.getElementById('closeSettings');
     const settingsContainer = document.getElementById('settingsContainer');
-    let settingsVisible = true;
+    let settingsVisible = false;
 
-    toggleButton.addEventListener('click', () => {
+    function toggleSettings() {
       settingsVisible = !settingsVisible;
       if (settingsVisible) {
-        settingsContainer.classList.remove('hidden');
-        toggleButton.textContent = '⚙';
+        settingsContainer.classList.add('visible');
       } else {
-        settingsContainer.classList.add('hidden');
-        toggleButton.textContent = '⚙';
+        settingsContainer.classList.remove('visible');
+      }
+    }
+
+    toggleButton.addEventListener('click', toggleSettings);
+    closeSettings.addEventListener('click', toggleSettings);
+
+    // Fullscreen functionality
+    const fullscreenButton = document.getElementById('fullscreenButton');
+    
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error(`Error attempting to enable fullscreen: ${err.message}`);
+        });
+        fullscreenButton.textContent = '❐';
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+          fullscreenButton.textContent = '⛶';
+        }
+      }
+    }
+    
+    fullscreenButton.addEventListener('click', toggleFullscreen);
+    
+    // Update button text when exiting fullscreen via ESC
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement) {
+        fullscreenButton.textContent = '⛶';
       }
     });
 
