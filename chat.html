@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>llm.chat</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Berkeley+Mono:ital,wght@0,100..700;1,100..700&family=DM+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0f;
+    --surface: #161618;
+    --surface2: #1c1c1f;
+    --border: #2a2a2e;
+    --muted: #45454e;
+    --text: #eaeaec;
+    --text-dim: #808088;
+    --text-faint: #46464e;
+    --accent: #7c6dfa;
+    --accent-dim: #3d3570;
+    --green: #4ade80;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --code-bg: #111114;
+    --code-border: #2e2e34;
+    --code-header: #1a1a1e;
+    --mono: 'Berkeley Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --sidebar-w: 260px;
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #sidebar-header {
+    padding: 16px 14px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  #sidebar-header span {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  #btn-new {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 11px;
+    font-size: 12px;
+    font-family: var(--mono);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: opacity 0.15s;
+  }
+  #btn-new:hover { opacity: 0.8; }
+
+  #history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+  }
+
+  .hist-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .hist-item:hover { background: var(--border); }
+  .hist-item.active { border-left-color: var(--accent); background: rgba(124,109,250,0.08); }
+
+  .hist-title {
+    font-size: 14px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+  }
+  .hist-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    gap: 10px;
+  }
+
+  /* ── SIDEBAR FOOTER ── */
+  #sidebar-footer {
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+  }
+  #btn-config {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 7px 11px;
+    border-radius: 5px;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    text-align: left;
+    transition: border-color 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  #btn-config:hover { border-color: var(--muted); color: var(--text); }
+  #btn-config .cfg-icon { font-size: 12px; }
+  #cfg-api-key-hint {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-faint);
+    margin-top: 6px;
+    padding-left: 2px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── CONFIG MODAL ── */
+  .cfg-modal { width: 440px; max-width: 95vw; }
+  .cfg-field { margin-bottom: 16px; }
+  .cfg-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .cfg-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .cfg-input:focus { border-color: var(--muted); }
+  .cfg-input[type="password"] { letter-spacing: 0.12em; }
+  .cfg-hint { font-family: var(--mono); font-size: 9px; color: var(--text-faint); margin-top: 4px; }
+  .cfg-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  /* ── MAIN ── */
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+  /* ── TOOLBAR ── */
+  #toolbar {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: var(--surface);
+  }
+
+  #endpoint-input {
+    flex: 1;
+    min-width: 200px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 5px;
+    outline: none;
+  }
+  #endpoint-input:focus { border-color: var(--muted); }
+
+  #model-input {
+    width: 170px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 5px;
+    outline: none;
+  }
+
+  /* tokenizer bar */
+  #tokenizer-bar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 6px;
+  }
+  #tok-label { font-family: var(--mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+  #tokenizer-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 5px;
+    outline: none;
+  }
+  #btn-load-tok {
+    background: transparent;
+    border: 1px solid var(--muted);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  #btn-load-tok:hover { border-color: var(--accent); color: var(--accent); }
+  #tok-status { font-family: var(--mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+
+  /* ── MESSAGES ── */
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 0 12px;
+    scroll-behavior: smooth;
+  }
+
+  .msg-wrapper {
+    position: relative;
+    padding: 0 28px;
+    margin-bottom: 6px;
+  }
+  .msg-wrapper:hover .msg-actions { opacity: 1; }
+
+  .msg-role {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 8px;
+    margin-top: 20px;
+  }
+  .msg-role.user { color: var(--accent); }
+  .msg-role.assistant { color: var(--green); }
+  .msg-role.system { color: var(--amber); }
+
+  /* Rendered markdown content (view mode) */
+  .msg-content-rendered {
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text);
+    word-break: break-word;
+    cursor: text;
+  }
+  .msg-content-rendered:hover { /* no bg change in rendered mode */ }
+
+  /* Prose styles inside rendered markdown */
+  .msg-content-rendered p { margin-bottom: 0.75em; }
+  .msg-content-rendered p:last-child { margin-bottom: 0; }
+  .msg-content-rendered h1,.msg-content-rendered h2,.msg-content-rendered h3 {
+    font-weight: 600; margin: 1em 0 0.4em; color: var(--text);
+  }
+  .msg-content-rendered h1 { font-size: 1.3em; }
+  .msg-content-rendered h2 { font-size: 1.15em; }
+  .msg-content-rendered h3 { font-size: 1.05em; }
+  .msg-content-rendered ul,.msg-content-rendered ol { padding-left: 1.5em; margin-bottom: 0.75em; }
+  .msg-content-rendered li { margin-bottom: 0.2em; }
+  .msg-content-rendered a { color: var(--accent); text-decoration: underline; }
+  .msg-content-rendered strong { color: #fff; font-weight: 600; }
+  .msg-content-rendered em { font-style: italic; }
+  .msg-content-rendered blockquote {
+    border-left: 3px solid var(--muted);
+    padding-left: 12px;
+    color: var(--text-dim);
+    margin: 0.5em 0;
+    font-style: italic;
+  }
+  /* Inline code */
+  .msg-content-rendered code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    color: #c9b8ff;
+  }
+  /* Code block component */
+  .msg-content-rendered .code-block {
+    margin: 10px 0;
+    border-radius: 8px;
+    border: 1px solid var(--code-border);
+    overflow: hidden;
+    background: var(--code-bg);
+  }
+  .msg-content-rendered .code-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 14px;
+    background: var(--code-header);
+    border-bottom: 1px solid var(--code-border);
+  }
+  .msg-content-rendered .code-lang {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .msg-content-rendered .code-copy-btn {
+    background: transparent;
+    border: 1px solid var(--code-border);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 9px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    letter-spacing: 0.04em;
+  }
+  .msg-content-rendered .code-copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .msg-content-rendered .code-copy-btn.copied { color: var(--green); border-color: var(--green); }
+  .msg-content-rendered pre {
+    margin: 0;
+    padding: 14px 16px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .msg-content-rendered pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #cdd6f4;
+    border-radius: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  /* Raw edit textarea (edit mode) */
+  .msg-content-edit {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--muted);
+    border-radius: 5px;
+    padding: 10px 12px;
+    width: 100%;
+    resize: none;
+    min-height: 4em;
+    outline: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+    display: block;
+    overflow: hidden;
+  }
+
+  .msg-actions {
+    position: absolute;
+    right: 28px;
+    top: 14px;
+    display: flex;
+    gap: 5px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .act-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .act-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .act-btn.del:hover { border-color: var(--red); color: var(--red); }
+
+  /* add message bar */
+  .add-msg-bar {
+    display: flex;
+    justify-content: center;
+    padding: 8px 28px;
+    gap: 10px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .add-msg-bar:hover { opacity: 1; }
+  .msg-wrapper:hover + .add-msg-bar,
+  .add-msg-bar:hover { opacity: 1; }
+
+  .add-btn {
+    background: transparent;
+    border: 1px dashed var(--muted);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .add-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(124,109,250,0.06); }
+
+  /* add-at-end bar */
+  #add-end-bar { display: flex; justify-content: center; gap: 8px; padding: 8px 28px 4px; }
+
+  /* ── INPUT AREA ── */
+  #input-area {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding: 12px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+
+  #chat-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    resize: none;
+    outline: none;
+    height: 68px;
+    max-height: 220px;
+    line-height: 1.5;
+    transition: border-color 0.15s;
+  }
+  #chat-input:focus { border-color: var(--muted); }
+  #chat-input::placeholder { color: var(--text-faint); }
+
+  #btn-send {
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 10px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    height: 68px;
+    white-space: nowrap;
+    letter-spacing: 0.04em;
+    transition: opacity 0.15s;
+  }
+  #btn-send:hover { opacity: 0.85; }
+  #btn-send:disabled { opacity: 0.4; cursor: default; }
+
+  #btn-stop {
+    background: transparent;
+    border: 1px solid var(--red);
+    color: var(--red);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 10px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    height: 68px;
+    white-space: nowrap;
+    letter-spacing: 0.04em;
+    transition: background 0.15s, color 0.15s;
+  }
+  #btn-stop:hover { background: var(--red); color: #fff; }
+
+  /* streaming cursor */
+  .streaming-cursor::after {
+    content: '▋';
+    animation: blink 0.7s step-end infinite;
+    color: var(--accent);
+    margin-left: 1px;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+
+  /* empty state */
+  #empty-state {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    text-align: center;
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 13px;
+    pointer-events: none;
+    letter-spacing: 0.06em;
+  }
+  #empty-state div:first-child { font-size: 26px; margin-bottom: 10px; }
+
+  /* modal */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+    width: 480px;
+    max-width: 95vw;
+  }
+  .modal h3 { font-family: var(--mono); font-size: 12px; color: var(--text-dim); margin-bottom: 14px; }
+  .modal textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    padding: 10px;
+    border-radius: 5px;
+    resize: vertical;
+    height: 130px;
+    outline: none;
+    margin-bottom: 12px;
+  }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal-btns button {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .modal-btns button.primary { border-color: var(--accent); color: var(--accent); }
+  .modal-btns button:hover { border-color: var(--text-dim); color: var(--text); }
+  .modal-btns button.primary:hover { border-color: var(--accent); color: var(--text); background: var(--accent-dim); }
+  .modal-role-sel { display: flex; gap: 8px; margin-bottom: 12px; }
+  .role-opt {
+    flex: 1; padding: 7px; text-align: center;
+    border: 1px solid var(--border); border-radius: 5px;
+    font-family: var(--mono); font-size: 11px; cursor: pointer;
+    color: var(--text-dim); transition: all 0.15s;
+  }
+  .role-opt.sel { border-color: var(--accent); color: var(--accent); background: rgba(124,109,250,0.1); }
+
+  .status-line {
+    padding: 5px 28px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    min-height: 22px;
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div id="sidebar-header">
+    <span>history</span>
+    <button id="btn-new">+ new</button>
+  </div>
+  <div id="history-list"></div>
+  <div id="sidebar-footer">
+    <button id="btn-config" onclick="openConfigModal()">
+      <span class="cfg-icon">⚙</span> config
+    </button>
+    <div id="cfg-api-key-hint"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="toolbar">
+    <input id="endpoint-input" type="text" placeholder="http://localhost:1234/v1" value="http://localhost:1234/v1">
+    <input id="model-input" type="text" placeholder="model name" value="local-model">
+    <div id="tokenizer-bar">
+      <span id="tok-label">tokenizer:</span>
+      <input id="tokenizer-input" type="text" placeholder="e.g. meta-llama/Llama-3.2-3B-Instruct">
+      <button id="btn-load-tok">load</button>
+      <span id="tok-status">not loaded</span>
+    </div>
+  </div>
+
+  <div id="messages" style="position:relative">
+    <div id="empty-state">
+      <div>⌗</div>
+      <div>start a conversation</div>
+    </div>
+    <div id="msg-container"></div>
+    <div id="add-end-bar" style="display:none">
+      <button class="add-btn" onclick="openAddModal('user', null)">+ user</button>
+      <button class="add-btn" onclick="openAddModal('assistant', null)">+ assistant</button>
+    </div>
+  </div>
+
+  <div class="status-line" id="status-line"></div>
+
+  <div id="input-area">
+    <textarea id="chat-input" placeholder="send a message… (Enter to send, Shift+Enter for newline)"></textarea>
+    <button id="btn-send">send →</button>
+    <button id="btn-stop" style="display:none">stop ▪</button>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────────
+//  CONFIG (persisted to localStorage)
+// ──────────────────────────────────────────────
+const CONFIG_KEY = 'llmchat_config';
+
+function loadConfig() {
+  try { return JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}'); } catch { return {}; }
+}
+
+function saveConfig(cfg) {
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+}
+
+function getConfig() { return loadConfig(); }
+
+function applyConfigToUI() {
+  const cfg = getConfig();
+  if (cfg.endpoint) document.getElementById('endpoint-input').value = cfg.endpoint;
+  if (cfg.model) document.getElementById('model-input').value = cfg.model;
+  if (cfg.tokenizerTag) document.getElementById('tokenizer-input').value = cfg.tokenizerTag;
+  updateApiKeyHint(cfg.apiKey);
+}
+
+function updateApiKeyHint(apiKey) {
+  const el = document.getElementById('cfg-api-key-hint');
+  if (apiKey && apiKey.length > 4) {
+    el.textContent = 'key: ' + apiKey.slice(0, 4) + '••••' + apiKey.slice(-4);
+  } else {
+    el.textContent = 'no api key set';
+  }
+}
+
+function getApiKey() { return getConfig().apiKey || ''; }
+
+function openConfigModal() {
+  const cfg = getConfig();
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+
+  const modal = document.createElement('div');
+  modal.className = 'modal cfg-modal';
+  modal.innerHTML = `
+    <h3>configuration</h3>
+    <hr class="cfg-divider" style="margin-top:10px">
+
+    <div class="cfg-field">
+      <label class="cfg-label">API Endpoint</label>
+      <input class="cfg-input" id="cfg-endpoint" type="text" placeholder="http://localhost:1234/v1"
+        value="${escHtml(cfg.endpoint || document.getElementById('endpoint-input').value || '')}">
+      <div class="cfg-hint">OpenAI-compatible base URL, no trailing slash</div>
+    </div>
+
+    <div class="cfg-field">
+      <label class="cfg-label">Model</label>
+      <input class="cfg-input" id="cfg-model" type="text" placeholder="local-model"
+        value="${escHtml(cfg.model || document.getElementById('model-input').value || '')}">
+    </div>
+
+    <div class="cfg-field">
+      <label class="cfg-label">API Key</label>
+      <input class="cfg-input" id="cfg-apikey" type="password" placeholder="sk-… (optional)"
+        value="${escHtml(cfg.apiKey || '')}">
+      <div class="cfg-hint">Stored in localStorage · never sent anywhere except your endpoint</div>
+    </div>
+
+    <hr class="cfg-divider">
+
+    <div class="cfg-field">
+      <label class="cfg-label">Tokenizer (HuggingFace tag)</label>
+      <input class="cfg-input" id="cfg-tok" type="text" placeholder="meta-llama/Llama-3.2-3B-Instruct"
+        value="${escHtml(cfg.tokenizerTag || document.getElementById('tokenizer-input').value || '')}">
+      <div class="cfg-hint">Used for "continue" — loads via Transformers.js</div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="cancel">cancel</button>
+      <button class="primary">save</button>
+    </div>
+  `;
+
+  modal.querySelector('.cancel').onclick = () => document.body.removeChild(bg);
+  modal.querySelector('.primary').onclick = () => {
+    const newCfg = {
+      endpoint: modal.querySelector('#cfg-endpoint').value.trim().replace(/\/$/, ''),
+      model: modal.querySelector('#cfg-model').value.trim(),
+      apiKey: modal.querySelector('#cfg-apikey').value.trim(),
+      tokenizerTag: modal.querySelector('#cfg-tok').value.trim(),
+    };
+    saveConfig(newCfg);
+    // sync live inputs
+    if (newCfg.endpoint) document.getElementById('endpoint-input').value = newCfg.endpoint;
+    if (newCfg.model) document.getElementById('model-input').value = newCfg.model;
+    if (newCfg.tokenizerTag) document.getElementById('tokenizer-input').value = newCfg.tokenizerTag;
+    updateApiKeyHint(newCfg.apiKey);
+    document.body.removeChild(bg);
+    setStatus('config saved');
+    setTimeout(() => setStatus(''), 2000);
+  };
+
+  bg.appendChild(modal);
+  bg.addEventListener('click', e => { if (e.target === bg) document.body.removeChild(bg); });
+  document.body.appendChild(bg);
+  modal.querySelector('#cfg-apikey').focus();
+}
+
+
+let db = null;
+let currentChatId = null;
+let messages = []; // {id, role, content}
+let isStreaming = false;
+let abortController = null;
+let tokenizer = null;
+let tokenizerTag = null;
+
+// ──────────────────────────────────────────────
+//  SQLITE INIT
+// ──────────────────────────────────────────────
+async function initDB() {
+  const SQL = await initSqlJs({
+    locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}`
+  });
+  const saved = localStorage.getItem('chatdb');
+  if (saved) {
+    const arr = Uint8Array.from(atob(saved), c => c.charCodeAt(0));
+    db = new SQL.Database(arr);
+  } else {
+    db = new SQL.Database();
+  }
+  db.run(`CREATE TABLE IF NOT EXISTS chats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at INTEGER,
+    updated_at INTEGER
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER,
+    role TEXT,
+    content TEXT,
+    position INTEGER,
+    created_at INTEGER
+  )`);
+  saveDB();
+}
+
+function saveDB() {
+  if (!db) return;
+  const data = db.export();
+  const b64 = btoa(String.fromCharCode(...data));
+  localStorage.setItem('chatdb', b64);
+}
+
+// ──────────────────────────────────────────────
+//  CHAT CRUD
+// ──────────────────────────────────────────────
+function createChat() {
+  const now = Date.now();
+  db.run('INSERT INTO chats (created_at, updated_at) VALUES (?, ?)', [now, now]);
+  const res = db.exec('SELECT last_insert_rowid() as id');
+  return res[0].values[0][0];
+}
+
+function updateChatTimestamp(chatId) {
+  db.run('UPDATE chats SET updated_at=? WHERE id=?', [Date.now(), chatId]);
+}
+
+function saveMessages(chatId, msgs) {
+  db.run('DELETE FROM chat_messages WHERE chat_id=?', [chatId]);
+  msgs.forEach((m, i) => {
+    db.run('INSERT INTO chat_messages (chat_id, role, content, position, created_at) VALUES (?,?,?,?,?)',
+      [chatId, m.role, m.content, i, Date.now()]);
+  });
+  updateChatTimestamp(chatId);
+  saveDB();
+}
+
+function loadChatMessages(chatId) {
+  const res = db.exec('SELECT role, content FROM chat_messages WHERE chat_id=? ORDER BY position', [chatId]);
+  if (!res.length) return [];
+  return res[0].values.map(([role, content]) => ({ role, content }));
+}
+
+function getAllChats() {
+  const res = db.exec(`
+    SELECT c.id, c.created_at, c.updated_at,
+      (SELECT COUNT(*) FROM chat_messages WHERE chat_id=c.id) as turns,
+      (SELECT content FROM chat_messages WHERE chat_id=c.id ORDER BY position LIMIT 1) as first_msg
+    FROM chats c ORDER BY c.updated_at DESC
+  `);
+  if (!res.length) return [];
+  return res[0].values.map(([id, created_at, updated_at, turns, first_msg]) =>
+    ({ id, created_at, updated_at, turns, first_msg }));
+}
+
+function deleteChat(chatId) {
+  db.run('DELETE FROM chat_messages WHERE chat_id=?', [chatId]);
+  db.run('DELETE FROM chats WHERE id=?', [chatId]);
+  saveDB();
+}
+
+// ──────────────────────────────────────────────
+//  UI HELPERS
+// ──────────────────────────────────────────────
+const msgContainer = document.getElementById('msg-container');
+const addEndBar = document.getElementById('add-end-bar');
+const emptyState = document.getElementById('empty-state');
+const statusLine = document.getElementById('status-line');
+
+function setStatus(s) { statusLine.textContent = s; }
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+  const chats = getAllChats();
+  chats.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'hist-item' + (c.id === currentChatId ? ' active' : '');
+    const preview = c.first_msg ? c.first_msg.slice(0, 40) + (c.first_msg.length > 40 ? '…' : '') : '(empty)';
+    const ts = new Date(c.updated_at);
+    const timeStr = ts.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' +
+      ts.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    d.innerHTML = `
+      <div class="hist-title">${escHtml(preview)}</div>
+      <div class="hist-meta"><span>${timeStr}</span><span>${c.turns} msg</span></div>
+    `;
+    d.addEventListener('click', () => loadChat(c.id));
+    list.appendChild(d);
+  });
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── MARKDOWN RENDERING ──
+function configureMarked() {
+  if (!window.marked) return;
+
+  // marked v9: use marked.use() for everything
+  marked.use({
+    gfm: true,
+    breaks: true,
+    renderer: {
+      code(token) {
+        // marked v9+ passes a token object; older builds pass (code, lang, escaped)
+        const text = (typeof token === 'object' && token !== null) ? (token.text ?? token.raw ?? '') : (token ?? '');
+        const lang = (typeof token === 'object' && token !== null) ? (token.lang ?? '') : (arguments[1] ?? '');
+        const safeLang = String(lang).trim();
+        const escaped = String(text)
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+          .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        const label = safeLang || 'text';
+        return `<div class="code-block"><div class="code-block-header"><span class="code-lang">${label}</span><button class="code-copy-btn" onclick="copyCode(this)">copy</button></div><pre><code>${escaped}</code></pre></div>`;
+      }
+    }
+  });
+}
+
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre code');
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.textContent = 'copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1800);
+  });
+}
+
+function renderMarkdown(text) {
+  if (!window.marked) return escHtml(text).replace(/\n/g,'<br>');
+  try {
+    return marked.parse(text || '');
+  } catch(e) {
+    console.error('marked error:', e);
+    return escHtml(text).replace(/\n/g,'<br>');
+  }
+}
+
+function makeContentEl(m, idx) {
+  const container = document.createElement('div');
+  let editing = false;
+
+  function showRendered() {
+    editing = false;
+    container.innerHTML = '';
+    const div = document.createElement('div');
+    div.className = 'msg-content-rendered';
+    div.innerHTML = renderMarkdown(m.content || '');
+    // Double-click anywhere (except inside code blocks) to edit
+    div.addEventListener('dblclick', e => {
+      if (e.target.closest('.code-block')) return;
+      showEdit();
+    });
+    container.appendChild(div);
+  }
+
+  function showEdit() {
+    if (editing) return;
+    editing = true;
+    container.innerHTML = '';
+    const ta = document.createElement('textarea');
+    ta.className = 'msg-content-edit';
+    ta.value = m.content;
+    ta.rows = Math.max(3, (m.content.match(/\n/g) || []).length + 2);
+    // auto-grow
+    ta.addEventListener('input', () => {
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 'px';
+    });
+    ta.addEventListener('blur', () => {
+      m.content = ta.value;
+      messages[idx] = m;
+      autosave();
+      showRendered();
+    });
+    ta.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        m.content = ta.value;
+        messages[idx] = m;
+        autosave();
+        showRendered();
+      }
+    });
+    container.appendChild(ta);
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    // trigger auto-height
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  }
+
+  showRendered();
+  container._showEdit = showEdit;
+  container._isEditing = () => editing;
+  return { container, showRendered, showEdit, isEditing: () => editing };
+}
+
+function renderMessages() {
+  msgContainer.innerHTML = '';
+  emptyState.style.display = messages.length ? 'none' : 'block';
+  addEndBar.style.display = messages.length ? 'flex' : 'none';
+
+  messages.forEach((m, idx) => {
+    const bar = insertBar(idx);
+    msgContainer.appendChild(bar);
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg-wrapper';
+    wrapper.dataset.idx = idx;
+
+    const roleEl = document.createElement('div');
+    roleEl.className = `msg-role ${m.role}`;
+    roleEl.textContent = m.role;
+
+    const { container: contentContainer } = makeContentEl(m, idx);
+
+    const actions = document.createElement('div');
+    actions.className = 'msg-actions';
+
+    // edit button (all roles)
+    const editBtn = document.createElement('button');
+    editBtn.className = 'act-btn';
+    editBtn.textContent = 'edit';
+    // Use mousedown + preventDefault so the textarea doesn't lose focus (which would
+    // trigger blur -> showRendered) before the click fires -> showEdit again.
+    editBtn.addEventListener('mousedown', e => {
+      e.preventDefault(); // prevents textarea blur
+    });
+    editBtn.addEventListener('click', () => {
+      if (contentContainer._isEditing && contentContainer._isEditing()) return; // already editing
+      contentContainer._showEdit && contentContainer._showEdit();
+    });
+    actions.appendChild(editBtn);
+
+    if (m.role === 'user') {
+      const runBtn = document.createElement('button');
+      runBtn.className = 'act-btn run';
+      runBtn.textContent = 'run ↵';
+      runBtn.onclick = () => runFrom(idx);
+      actions.appendChild(runBtn);
+    }
+
+    if (m.role === 'assistant') {
+      const contBtn = document.createElement('button');
+      contBtn.className = 'act-btn continue';
+      contBtn.textContent = 'continue →';
+      contBtn.onclick = () => continueFrom(idx);
+      actions.appendChild(contBtn);
+    }
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'act-btn del';
+    delBtn.textContent = '✕';
+    delBtn.onclick = () => deleteMessage(idx);
+    actions.appendChild(delBtn);
+
+    wrapper.appendChild(roleEl);
+    wrapper.appendChild(contentContainer);
+    wrapper.appendChild(actions);
+    msgContainer.appendChild(wrapper);
+  });
+
+  // trailing add bar
+  const finalBar = insertBar(messages.length);
+  finalBar.style.opacity = '0.4';
+  msgContainer.appendChild(finalBar);
+
+  addEndBar.style.display = 'none';
+}
+
+function insertBar(afterIdx) {
+  const bar = document.createElement('div');
+  bar.className = 'add-msg-bar';
+  bar.style.opacity = '0';
+  bar.style.transition = 'opacity 0.15s';
+
+  const addU = document.createElement('button');
+  addU.className = 'add-btn';
+  addU.textContent = '+ user';
+  addU.onclick = () => openAddModal('user', afterIdx);
+
+  const addA = document.createElement('button');
+  addA.className = 'add-btn';
+  addA.textContent = '+ assistant';
+  addA.onclick = () => openAddModal('assistant', afterIdx);
+
+  bar.appendChild(addU);
+  bar.appendChild(addA);
+
+  bar.addEventListener('mouseenter', () => bar.style.opacity = '1');
+  bar.addEventListener('mouseleave', () => bar.style.opacity = '0');
+  // Also show when adjacent wrapper is hovered
+  return bar;
+}
+
+function scrollBottom() {
+  const msgs = document.getElementById('messages');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ──────────────────────────────────────────────
+//  NEW CHAT / LOAD CHAT
+// ──────────────────────────────────────────────
+function newChat() {
+  currentChatId = createChat();
+  messages = [];
+  renderMessages();
+  renderHistory();
+  setStatus('');
+}
+
+function loadChat(id) {
+  currentChatId = id;
+  messages = loadChatMessages(id);
+  renderMessages();
+  renderHistory();
+  scrollBottom();
+  setStatus('');
+}
+
+// ──────────────────────────────────────────────
+//  ADD / DELETE MESSAGE
+// ──────────────────────────────────────────────
+let addModalCallback = null;
+
+function openAddModal(defaultRole, atIndex) {
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+
+  let selectedRole = defaultRole;
+
+  modal.innerHTML = `
+    <h3>add message</h3>
+    <div class="modal-role-sel">
+      <div class="role-opt ${defaultRole==='user'?'sel':''}" data-role="user">user</div>
+      <div class="role-opt ${defaultRole==='assistant'?'sel':''}" data-role="assistant">assistant</div>
+      <div class="role-opt ${defaultRole==='system'?'sel':''}" data-role="system">system</div>
+    </div>
+    <textarea placeholder="message content…"></textarea>
+    <div class="modal-btns">
+      <button class="cancel">cancel</button>
+      <button class="primary">add</button>
+    </div>
+  `;
+
+  modal.querySelectorAll('.role-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      modal.querySelectorAll('.role-opt').forEach(o => o.classList.remove('sel'));
+      opt.classList.add('sel');
+      selectedRole = opt.dataset.role;
+    });
+  });
+
+  modal.querySelector('.cancel').onclick = () => document.body.removeChild(bg);
+  modal.querySelector('.primary').onclick = () => {
+    const content = modal.querySelector('textarea').value.trim();
+    if (!content) return;
+    const msg = { role: selectedRole, content };
+    if (atIndex === null || atIndex === messages.length) {
+      messages.push(msg);
+    } else {
+      messages.splice(atIndex, 0, msg);
+    }
+    document.body.removeChild(bg);
+    renderMessages();
+    autosave();
+    scrollBottom();
+  };
+
+  bg.appendChild(modal);
+  bg.addEventListener('click', e => { if (e.target === bg) document.body.removeChild(bg); });
+  document.body.appendChild(bg);
+  modal.querySelector('textarea').focus();
+}
+
+function deleteMessage(idx) {
+  messages.splice(idx, 1);
+  renderMessages();
+  autosave();
+}
+
+// ──────────────────────────────────────────────
+//  AUTOSAVE
+// ──────────────────────────────────────────────
+function autosave() {
+  if (!currentChatId) return;
+  saveMessages(currentChatId, messages);
+  renderHistory();
+}
+
+// ──────────────────────────────────────────────
+//  API HELPERS
+// ──────────────────────────────────────────────
+function getEndpoint() { return document.getElementById('endpoint-input').value.replace(/\/$/, ''); }
+function getModel() { return document.getElementById('model-input').value || 'local-model'; }
+
+function apiHeaders() {
+  const key = getApiKey();
+  const h = { 'Content-Type': 'application/json' };
+  if (key) h['Authorization'] = 'Bearer ' + key;
+  return h;
+}
+
+async function chatCompletion(msgs) {
+  // first, trim all messages
+  msgs = msgs.map(m => ({ ...m, content: m.content.trim() }));
+  abortController = new AbortController();
+  const res = await fetch(getEndpoint() + '/chat/completions', {
+    method: 'POST',
+    headers: apiHeaders(),
+    signal: abortController.signal,
+    body: JSON.stringify({
+      model: getModel(),
+      messages: msgs,
+      stream: true
+    })
+  });
+  return res;
+}
+
+async function textCompletion(prompt) {
+  abortController = new AbortController();
+  const res = await fetch(getEndpoint() + '/completions', {
+    method: 'POST',
+    headers: apiHeaders(),
+    signal: abortController.signal,
+    body: JSON.stringify({
+      model: getModel(),
+      prompt: prompt.trim(),
+      stream: true
+    })
+  });
+  return res;
+}
+
+async function streamResponse(fetchPromise, onChunk) {
+  const res = await fetchPromise;
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') return;
+        try {
+          const json = JSON.parse(data);
+          const delta = json.choices?.[0]?.delta?.content
+            ?? json.choices?.[0]?.text
+            ?? '';
+          if (delta) onChunk(delta);
+        } catch {}
+      }
+    }
+  } catch(e) {
+    if (e.name === 'AbortError') return; // clean stop
+    throw e;
+  } finally {
+    reader.cancel();
+  }
+}
+
+// ──────────────────────────────────────────────
+//  SEND (normal flow)
+// ──────────────────────────────────────────────
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || isStreaming) return;
+
+  if (!currentChatId) newChat();
+
+  input.value = '';
+  messages.push({ role: 'user', content: text });
+  messages.push({ role: 'assistant', content: '' });
+  renderMessages();
+  scrollBottom();
+
+  await doStream(messages.length - 1);
+}
+
+// ──────────────────────────────────────────────
+//  RUN FROM (re-run from a user message)
+// ──────────────────────────────────────────────
+async function runFrom(userIdx) {
+  if (isStreaming) return;
+  // truncate everything after this user message
+  messages = messages.slice(0, userIdx + 1);
+  messages.push({ role: 'assistant', content: '' });
+  renderMessages();
+  scrollBottom();
+  await doStream(messages.length - 1);
+}
+
+// ──────────────────────────────────────────────
+//  CONTINUE (text completion)
+// ──────────────────────────────────────────────
+async function continueFrom(assistantIdx) {
+  if (isStreaming) return;
+  if (!tokenizer) {
+    setStatus('⚠ load a tokenizer first to use continue');
+    return;
+  }
+
+  // build prompt: apply chat template up to and including this assistant message
+  // but remove the EOS/end token so the model continues
+  const msgsSlice = messages.slice(0, assistantIdx + 1);
+  let prompt = await buildOpenPrompt(msgsSlice);
+
+  setStatus('continuing…');
+  setStreamingState(true);
+
+  // find the assistant content el
+  renderMessages();
+  const wrappers = msgContainer.querySelectorAll('.msg-wrapper');
+  const targetWrapper = wrappers[assistantIdx];
+  const contentEl = targetWrapper?.querySelector('.msg-content-rendered');
+  if (contentEl) contentEl.classList.add('streaming-cursor');
+
+  let accumulated = messages[assistantIdx].content;
+
+  try {
+    await streamResponse(textCompletion(prompt), chunk => {
+      accumulated += chunk;
+      messages[assistantIdx].content = accumulated;
+      if (contentEl) {
+        contentEl.innerHTML = renderMarkdown(accumulated);
+      }
+      scrollBottom();
+    });
+  } catch (e) {
+    setStatus('error: ' + e.message);
+  } finally {
+    setStreamingState(false);
+    if (contentEl) contentEl.classList.remove('streaming-cursor');
+    autosave();
+    setStatus('');
+  }
+}
+
+// ──────────────────────────────────────────────
+//  STREAM ASSISTANT REPLY
+// ──────────────────────────────────────────────
+async function doStream(assistantIdx) {
+  setStreamingState(true);
+  setStatus('generating…');
+
+  const wrappers = msgContainer.querySelectorAll('.msg-wrapper');
+  const targetWrapper = wrappers[assistantIdx];
+  const contentEl = targetWrapper?.querySelector('.msg-content-rendered');
+  if (contentEl) contentEl.classList.add('streaming-cursor');
+
+  const msgsForApi = messages.slice(0, assistantIdx).map(m => ({ role: m.role, content: m.content }));
+
+  let accumulated = '';
+
+  try {
+    await streamResponse(chatCompletion(msgsForApi), chunk => {
+      accumulated += chunk;
+      messages[assistantIdx].content = accumulated;
+      if (contentEl) {
+        contentEl.innerHTML = renderMarkdown(accumulated);
+      }
+      scrollBottom();
+    });
+  } catch (e) {
+    setStatus('error: ' + e.message);
+    console.error(e);
+  } finally {
+    setStreamingState(false);
+    if (contentEl) contentEl.classList.remove('streaming-cursor');
+    autosave();
+    setStatus('');
+  }
+}
+
+// ──────────────────────────────────────────────
+//  TOKENIZER
+// ──────────────────────────────────────────────
+
+// ── CHAT TEMPLATE RENDERING (via Pyodide — real Python jinja2) ──
+// JS Jinja engines don't support the full Jinja2 spec (~ operator, namespace(),
+// loop.changed(), etc.) used by complex templates like MiniMax.
+// Pyodide runs CPython in the browser via WASM, giving us 100% compatible rendering.
+let chatTemplateStr = null;
+let chatTemplateSpecialTokens = {};
+let pyodideReady = null;  // Promise<pyodide>
+
+async function loadPyodide_() {
+  if (pyodideReady) return pyodideReady;
+  pyodideReady = (async () => {
+    if (!window.loadPyodide) {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+    const py = await window.loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.27.0/full/' });
+    await py.loadPackage('micropip');
+    await py.runPythonAsync(`
+import micropip
+await micropip.install('jinja2')
+`);
+    return py;
+  })();
+  return pyodideReady;
+}
+
+async function renderChatTemplate(tmplStr, specialTokens, messages, addGenerationPrompt) {
+  const py = await loadPyodide_();
+
+  // Pass ALL data as a single JSON string to avoid any JS->Python proxy mangling
+  const payload = JSON.stringify({ tmpl: tmplStr, special: specialTokens, messages, addGenPrompt: addGenerationPrompt });
+  py.globals.set('_payload_json', payload);
+
+  const result = await py.runPythonAsync(`
+import jinja2, json
+
+data = json.loads(_payload_json)
+tmpl_str = data['tmpl']
+import sys
+print('[py-jinja] template first 300 chars:', repr(tmpl_str[:300]), file=sys.stderr)
+special  = data['special']
+msgs     = data['messages']
+add_gen  = data['addGenPrompt']
+
+bos = special.pop('bos_token', '')
+eos = special.pop('eos_token', '')
+
+env = jinja2.Environment(
+    loader=jinja2.BaseLoader(),
+    keep_trailing_newline=True,
+    trim_blocks=False,
+    lstrip_blocks=False,
+)
+env.globals['raise_exception'] = lambda msg: (_ for _ in ()).throw(Exception(msg))
+
+template = env.from_string(tmpl_str)
+rendered = template.render(
+    messages=msgs,
+    add_generation_prompt=bool(add_gen),
+    bos_token=bos,
+    eos_token=eos,
+    **special,
+)
+print('[py-jinja] rendered first 400 chars:', repr(rendered[:400]), file=sys.stderr)
+rendered
+`);
+  return result;
+}
+
+async function fetchChatTemplate(tag) {
+  const base = `https://huggingface.co/${tag}/resolve/main`;
+  const hfApi = `https://huggingface.co/api/models/${tag}`;
+
+  // Always fetch tokenizer_config.json for special tokens (bos/eos etc.)
+  let specialTokens = {};
+  let tokenizerConfig = null;
+  try {
+    const cfgRes = await fetch(`${base}/tokenizer_config.json`);
+    console.debug('[tokenizer] tokenizer_config.json status:', cfgRes.status, cfgRes.headers.get('content-type'));
+    if (cfgRes.ok) {
+      tokenizerConfig = await cfgRes.json();
+      for (const [k, v] of Object.entries(tokenizerConfig)) {
+        if (typeof v === 'string' && k.endsWith('_token')) specialTokens[k] = v;
+        else if (v && typeof v === 'object' && v.content && k.endsWith('_token')) specialTokens[k] = v.content;
+      }
+      console.debug('[tokenizer] special tokens found:', Object.keys(specialTokens));
+    }
+  } catch(e) { console.error('[tokenizer] tokenizer_config.json error:', e); }
+
+  // 1. Standalone chat_template.jinja (MiniMax and others)
+  try {
+    const res = await fetch(`${base}/chat_template.jinja`);
+    console.debug('[tokenizer] chat_template.jinja status:', res.status, res.headers.get('content-type'));
+    if (res.ok) {
+      const text = await res.text();
+      console.debug('[tokenizer] chat_template.jinja length:', text.length, 'first 200:', JSON.stringify(text.slice(0, 200)));
+      if (text && text.trim().length > 10) {
+        return { template: text, special_tokens: specialTokens };
+      }
+    }
+  } catch(e) { console.error('[tokenizer] chat_template.jinja error:', e); }
+
+  // 2. tokenizer_config.json → chat_template key
+  if (tokenizerConfig?.chat_template) {
+    const ct = tokenizerConfig.chat_template;
+    if (typeof ct === 'string') {
+      console.debug('[tokenizer] template from tokenizer_config.json (string), first 200:', JSON.stringify(ct.slice(0, 200)));
+      return { template: ct, special_tokens: specialTokens };
+    }
+    if (Array.isArray(ct)) {
+      const entry = ct.find(t => t.name === 'default') || ct[0];
+      if (entry?.template) {
+        console.debug('[tokenizer] template from tokenizer_config.json (array:', entry.name, '), first 200:', JSON.stringify(entry.template.slice(0, 200)));
+        return { template: entry.template, special_tokens: specialTokens };
+      }
+    }
+  }
+
+  // 3. HuggingFace API (returns model card + siblings, but also has config)
+  try {
+    const res = await fetch(hfApi);
+    if (res.ok) {
+      const info = await res.json();
+      console.debug('[tokenizer] HF API model info keys:', Object.keys(info));
+    }
+  } catch(e) {}
+
+  // 4. tokenizer.json
+  try {
+    const res = await fetch(`${base}/tokenizer.json`);
+    if (res.ok) {
+      const tj = await res.json();
+      const t = typeof tj.chat_template === 'string' ? tj.chat_template : tj.chat_template?.[0]?.template;
+      if (t) {
+        console.debug('[tokenizer] template from tokenizer.json, first 200:', JSON.stringify(t.slice(0, 200)));
+        return { template: t, special_tokens: specialTokens };
+      }
+    }
+  } catch(e) { console.error('[tokenizer] tokenizer.json error:', e); }
+
+  console.error('[tokenizer] no template found from any source');
+  return null;
+}
+
+async function loadTokenizer() {
+  const tag = document.getElementById('tokenizer-input').value.trim();
+  if (!tag) return;
+  const status = document.getElementById('tok-status');
+  status.textContent = 'loading pyodide + jinja2…';
+  try {
+    // Kick off Pyodide load immediately (takes a few seconds)
+    const pyPromise = loadPyodide_();
+
+    const result = await fetchChatTemplate(tag);
+    if (!result) {
+      status.textContent = '⚠ no chat_template found';
+      status.style.color = 'var(--amber)';
+      return;
+    }
+
+    chatTemplateStr = result.template;
+    chatTemplateSpecialTokens = result.special_tokens;
+    tokenizerTag = tag;
+    tokenizer = { chat_template: chatTemplateStr }; // marker for "loaded" checks
+
+    // Wait for Pyodide to finish
+    status.textContent = 'waiting for pyodide…';
+    await pyPromise;
+
+    status.textContent = '✓ ' + tag.split('/').pop();
+    status.style.color = 'var(--green)';
+    console.debug('[tokenizer] special tokens:', chatTemplateSpecialTokens);
+  } catch (e) {
+    status.textContent = 'error: ' + e.message.slice(0, 60);
+    status.style.color = 'var(--red)';
+    tokenizer = null;
+    chatTemplateStr = null;
+  }
+}
+async function buildOpenPrompt(msgs) {
+  // Render the chat template up to and including the last assistant message content,
+  // WITHOUT the closing token — leaving the generation "open" for /completions.
+  //
+  // Strategy (same diff trick, now using nunjucks for correct Jinja2 rendering):
+  //   A = render(all msgs, add_generation_prompt=false)  -> ...<open><content><close>
+  //   B = render(msgs without last, add_generation_prompt=true) -> ...<open>
+  //   Return A[0 : B.length + content.length]  (strips the closing token)
+
+  if (!chatTemplateStr) throw new Error('no chat template loaded — load a tokenizer first');
+
+  const chat = msgs.map(m => ({ role: m.role, content: m.content }));
+  const lastMsg = chat[chat.length - 1];
+
+  if (lastMsg.role !== 'assistant') {
+    throw new Error('Last message must be assistant for continue');
+  }
+
+  try {
+    // Full closed render — find the last assistant content and strip the trailing suffix.
+    const fullText = await renderChatTemplate(chatTemplateStr, chatTemplateSpecialTokens, chat, false);
+
+    // Find last occurrence of the assistant content in the full render.
+    // We search from the end because the same text could appear earlier in the conversation.
+    // The diff trick (withGenPrompt.length) is unreliable when add_generation_prompt
+    // appends extra tokens (e.g. MiniMax adds <think>\n) making it longer than the
+    // prefix in fullText. A reverse search is simpler and always correct.
+    const idx = fullText.lastIndexOf(lastMsg.content);
+    if (idx === -1) throw new Error('Could not locate assistant content in rendered template');
+    const openPrompt = fullText.slice(0, idx + lastMsg.content.length);
+    const closingSuffix = fullText.slice(idx + lastMsg.content.length);
+    console.debug('[continue] closing suffix stripped:', JSON.stringify(closingSuffix));
+    console.debug('[continue] open prompt tail:', JSON.stringify(openPrompt.slice(-120)));
+    return openPrompt;
+
+  } catch (e) {
+    console.error('chat template error', e);
+    setStatus('\u26a0 template error: ' + e.message.slice(0, 80));
+    throw e;
+  }
+}
+
+// ──────────────────────────────────────────────
+//  STREAMING STATE
+// ──────────────────────────────────────────────
+function setStreamingState(streaming) {
+  isStreaming = streaming;
+  document.getElementById('btn-send').disabled = streaming;
+  document.getElementById('btn-stop').style.display = streaming ? 'block' : 'none';
+}
+
+function stopStreaming() {
+  if (abortController) abortController.abort();
+}
+
+// ──────────────────────────────────────────────
+//  EVENT BINDINGS
+// ──────────────────────────────────────────────
+document.getElementById('btn-new').addEventListener('click', newChat);
+document.getElementById('btn-send').addEventListener('click', sendMessage);
+document.getElementById('btn-stop').addEventListener('click', stopStreaming);
+document.getElementById('btn-load-tok').addEventListener('click', loadTokenizer);
+
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+// ──────────────────────────────────────────────
+//  BOOT
+// ──────────────────────────────────────────────
+(async () => {
+  configureMarked();
+  applyConfigToUI();
+  await initDB();
+  const chats = getAllChats();
+  if (chats.length) {
+    loadChat(chats[0].id);
+  } else {
+    newChat();
+  }
+  renderHistory();
+
+  // persist endpoint/model edits live
+  document.getElementById('endpoint-input').addEventListener('change', () => {
+    const cfg = getConfig();
+    cfg.endpoint = document.getElementById('endpoint-input').value.trim().replace(/\/$/, '');
+    saveConfig(cfg);
+  });
+  document.getElementById('model-input').addEventListener('change', () => {
+    const cfg = getConfig();
+    cfg.model = document.getElementById('model-input').value.trim();
+    saveConfig(cfg);
+  });
+})();
+</script>
+</body>
+</html>
