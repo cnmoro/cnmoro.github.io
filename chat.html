@@ -1971,14 +1971,6 @@ async function loadTokenizer() {
   }
 }
 async function buildOpenPrompt(msgs) {
-  // Render the chat template up to and including the last assistant message content,
-  // WITHOUT the closing token — leaving the generation "open" for /completions.
-  //
-  // Strategy (same diff trick, now using nunjucks for correct Jinja2 rendering):
-  //   A = render(all msgs, add_generation_prompt=false)  -> ...<open><content><close>
-  //   B = render(msgs without last, add_generation_prompt=true) -> ...<open>
-  //   Return A[0 : B.length + content.length]  (strips the closing token)
-
   if (!chatTemplateStr) throw new Error('no chat template loaded — load a tokenizer first');
 
   const chat = msgs.map(m => ({ role: m.role, content: m.content }));
@@ -1989,19 +1981,38 @@ async function buildOpenPrompt(msgs) {
   }
 
   try {
-    // Full closed render — find the last assistant content and strip the trailing suffix.
-    const fullText = await renderChatTemplate(chatTemplateStr, chatTemplateSpecialTokens, chat, false);
+    // Render WITHOUT the last message, with add_generation_prompt=true
+    // This gives us the prefix up to where the assistant content begins
+    const prefixText = await renderChatTemplate(
+      chatTemplateStr, chatTemplateSpecialTokens,
+      chat.slice(0, -1), true
+    );
 
-    // Find last occurrence of the assistant content in the full render.
-    // We search from the end because the same text could appear earlier in the conversation.
-    // The diff trick (withGenPrompt.length) is unreliable when add_generation_prompt
-    // appends extra tokens (e.g. MiniMax adds <think>\n) making it longer than the
-    // prefix in fullText. A reverse search is simpler and always correct.
-    const idx = fullText.lastIndexOf(lastMsg.content);
-    if (idx === -1) throw new Error('Could not locate assistant content in rendered template');
-    const openPrompt = fullText.slice(0, idx + lastMsg.content.length);
-    const closingSuffix = fullText.slice(idx + lastMsg.content.length);
-    console.debug('[continue] closing suffix stripped:', JSON.stringify(closingSuffix));
+    // Full render WITH the last message, no generation prompt
+    const fullText = await renderChatTemplate(
+      chatTemplateStr, chatTemplateSpecialTokens,
+      chat, false
+    );
+
+    console.debug('[continue] prefix tail:', JSON.stringify(prefixText.slice(-60)));
+    console.debug('[continue] full text from prefix offset:', JSON.stringify(fullText.slice(prefixText.length, prefixText.length + 120)));
+
+    // Everything from start up to end of assistant content
+    // The content starts at prefixText.length; find where it ends by
+    // searching for lastMsg.content starting at that offset
+    const contentStart = prefixText.length;
+    const contentEnd = fullText.indexOf(lastMsg.content, contentStart);
+
+    if (contentEnd === -1) {
+      // Fallback: content might be slightly transformed (e.g. whitespace).
+      // Use prefix + raw content directly.
+      console.warn('[continue] content not found after prefix, using prefix + raw content');
+      return prefixText + lastMsg.content;
+    }
+
+    const openPrompt = fullText.slice(0, contentEnd + lastMsg.content.length);
+    const stripped = fullText.slice(contentEnd + lastMsg.content.length);
+    console.debug('[continue] closing suffix stripped:', JSON.stringify(stripped));
     console.debug('[continue] open prompt tail:', JSON.stringify(openPrompt.slice(-120)));
     return openPrompt;
 
