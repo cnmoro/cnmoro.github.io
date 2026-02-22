@@ -12,7 +12,6 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    /* Deep space dark palette with subtle blue undertones */
     --bg: #0a0a0f;
     --bg-elevated: #0f0f14;
     --surface: rgba(255, 255, 255, 0.02);
@@ -20,51 +19,33 @@
     --glass: rgba(20, 20, 28, 0.6);
     --glass-border: rgba(255, 255, 255, 0.08);
     --glass-border-strong: rgba(255, 255, 255, 0.12);
-    
-    /* Refined accent colors - electric violet with cyan highlights */
     --accent: #a78bfa;
     --accent-dim: #7c3aed;
     --accent-glow: rgba(167, 139, 250, 0.3);
     --cyan: #22d3ee;
     --cyan-dim: rgba(34, 211, 238, 0.1);
-    
-    /* Semantic colors - desaturated for dark mode */
     --green: #4ade80;
     --amber: #fbbf24;
     --red: #f87171;
-    
-    /* Text hierarchy with improved contrast */
     --text: #f8fafc;
     --text-secondary: #94a3b8;
     --text-tertiary: #64748b;
     --text-muted: #475569;
-    
-    /* Code blocks - deeper contrast */
     --code-bg: #0d0d12;
     --code-border: rgba(255, 255, 255, 0.06);
-    
-    /* Typography */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
-    
-    /* Dimensions */
     --sidebar-w: 280px;
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
-    
-    /* Effects */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
     --shadow-glow: 0 0 40px rgba(167, 139, 250, 0.15);
     --blur: blur(20px) saturate(180%);
   }
 
-  html, body { 
-    height: 100%; 
-    overflow: hidden; 
-    background: var(--bg);
-  }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); }
 
   body {
     font-family: var(--font-sans);
@@ -76,7 +57,6 @@
     display: flex;
   }
 
-  /* Animated background gradient */
   body::before {
     content: '';
     position: fixed;
@@ -88,7 +68,6 @@
     z-index: 0;
   }
 
-  /* ── SIDEBAR ── */
   #sidebar {
     width: var(--sidebar-w);
     min-width: var(--sidebar-w);
@@ -133,19 +112,10 @@
     transition: all 0.2s ease;
     box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
   }
-  
-  #btn-new:hover { 
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4);
-  }
-  
+  #btn-new:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4); }
   #btn-new:active { transform: translateY(0); }
 
-  #history-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-  }
+  #history-list { flex: 1; overflow-y: auto; padding: 8px; }
 
   .hist-item {
     padding: 12px 14px;
@@ -155,44 +125,14 @@
     border: 1px solid transparent;
     transition: all 0.15s ease;
   }
-  
-  .hist-item:hover { 
-    background: var(--surface-hover);
-    border-color: var(--glass-border);
-  }
-  
-  .hist-item.active { 
-    background: rgba(167, 139, 250, 0.08);
-    border-color: rgba(167, 139, 250, 0.3);
-    box-shadow: 0 0 20px rgba(167, 139, 250, 0.1);
-  }
+  .hist-item:hover { background: var(--surface-hover); border-color: var(--glass-border); }
+  .hist-item.active { background: rgba(167, 139, 250, 0.08); border-color: rgba(167, 139, 250, 0.3); box-shadow: 0 0 20px rgba(167, 139, 250, 0.1); }
 
-  .hist-title {
-    font-size: 13px;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 4px;
-    font-weight: 450;
-  }
-  
-  .hist-meta {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--text-tertiary);
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
+  .hist-title { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; font-weight: 450; }
+  .hist-meta { font-family: var(--font-mono); font-size: 10px; color: var(--text-tertiary); display: flex; gap: 8px; align-items: center; }
 
-  /* ── SIDEBAR FOOTER ── */
-  #sidebar-footer {
-    padding: 16px;
-    border-top: 1px solid var(--glass-border);
-    background: rgba(0, 0, 0, 0.2);
-  }
-  
+  #sidebar-footer { padding: 16px; border-top: 1px solid var(--glass-border); background: rgba(0, 0, 0, 0.2); }
+
   #btn-config {
     width: 100%;
     background: var(--surface);
@@ -210,85 +150,22 @@
     align-items: center;
     gap: 8px;
   }
-  
-  #btn-config:hover { 
-    border-color: var(--glass-border-strong);
-    color: var(--text);
-    background: var(--surface-hover);
-  }
-  
+  #btn-config:hover { border-color: var(--glass-border-strong); color: var(--text); background: var(--surface-hover); }
   #btn-config .cfg-icon { font-size: 13px; opacity: 0.7; }
-  
-  #cfg-api-key-hint {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--text-muted);
-    margin-top: 8px;
-    padding-left: 4px;
-    letter-spacing: 0.02em;
-  }
 
-  /* ── CONFIG MODAL ── */
+  #cfg-api-key-hint { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); margin-top: 8px; padding-left: 4px; letter-spacing: 0.02em; }
+
   .cfg-modal { width: 480px; max-width: 95vw; }
-  
   .cfg-field { margin-bottom: 20px; }
-  
-  .cfg-label {
-    display: block;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--text-tertiary);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-    font-weight: 500;
-  }
-  
-  .cfg-input {
-    width: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--glass-border);
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
-    outline: none;
-    transition: all 0.2s ease;
-  }
-  
-  .cfg-input:focus { 
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
-  }
-  
+  .cfg-label { display: block; font-family: var(--font-mono); font-size: 10px; color: var(--text-tertiary); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; font-weight: 500; }
+  .cfg-input { width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--glass-border); color: var(--text); font-family: var(--font-mono); font-size: 13px; padding: 10px 12px; border-radius: var(--radius-sm); outline: none; transition: all 0.2s ease; }
+  .cfg-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1); }
   .cfg-input[type="password"] { letter-spacing: 0.1em; }
-  
-  .cfg-hint { 
-    font-family: var(--font-mono); 
-    font-size: 10px; 
-    color: var(--text-tertiary); 
-    margin-top: 6px; 
-    line-height: 1.4;
-  }
-  
-  .cfg-divider { 
-    border: none; 
-    border-top: 1px solid var(--glass-border); 
-    margin: 20px 0; 
-  }
+  .cfg-hint { font-family: var(--font-mono); font-size: 10px; color: var(--text-tertiary); margin-top: 6px; line-height: 1.4; }
+  .cfg-divider { border: none; border-top: 1px solid var(--glass-border); margin: 20px 0; }
 
-  /* ── MAIN ── */
-  #main { 
-    flex: 1; 
-    display: flex; 
-    flex-direction: column; 
-    overflow: hidden; 
-    position: relative;
-    z-index: 5;
-  }
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 5; }
 
-  /* ── TOOLBAR ── */
   #toolbar {
     padding: 16px 20px;
     border-bottom: 1px solid var(--glass-border);
@@ -299,12 +176,7 @@
     backdrop-filter: var(--blur);
   }
 
-  .toolbar-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
+  .toolbar-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
   #endpoint-input, #model-input {
     background: rgba(0, 0, 0, 0.2);
@@ -317,83 +189,19 @@
     outline: none;
     transition: all 0.2s ease;
   }
-  
-  #endpoint-input:focus, #model-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
-  }
-
+  #endpoint-input:focus, #model-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1); }
   #endpoint-input { flex: 1; min-width: 280px; }
   #model-input { width: 180px; }
 
-  /* tokenizer bar */
-  #tokenizer-bar {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  
-  #tok-label { 
-    font-family: var(--font-mono); 
-    font-size: 10px; 
-    color: var(--text-tertiary); 
-    white-space: nowrap;
-    letter-spacing: 0.05em;
-  }
-  
-  #tokenizer-input {
-    flex: 1;
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--glass-border);
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    outline: none;
-    transition: all 0.2s ease;
-  }
-  
-  #tokenizer-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
-  }
-  
-  #btn-load-tok {
-    background: transparent;
-    border: 1px solid var(--glass-border-strong);
-    color: var(--text-secondary);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    padding: 8px 16px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s ease;
-    font-weight: 500;
-  }
-  
-  #btn-load-tok:hover { 
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(167, 139, 250, 0.1);
-  }
-  
-  #tok-status { 
-    font-family: var(--font-mono); 
-    font-size: 11px; 
-    color: var(--text-tertiary); 
-    white-space: nowrap;
-  }
+  #tokenizer-bar { width: 100%; display: flex; align-items: center; gap: 12px; }
+  #tok-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-tertiary); white-space: nowrap; letter-spacing: 0.05em; }
+  #tokenizer-input { flex: 1; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--glass-border); color: var(--text); font-family: var(--font-mono); font-size: 12px; padding: 8px 12px; border-radius: var(--radius-sm); outline: none; transition: all 0.2s ease; }
+  #tokenizer-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1); }
+  #btn-load-tok { background: transparent; border: 1px solid var(--glass-border-strong); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11px; padding: 8px 16px; border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap; transition: all 0.2s ease; font-weight: 500; }
+  #btn-load-tok:hover { border-color: var(--accent); color: var(--accent); background: rgba(167, 139, 250, 0.1); }
+  #tok-status { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); white-space: nowrap; }
 
-  /* ── MESSAGES ── */
-  #messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 32px 0;
-    scroll-behavior: smooth;
-  }
+  #messages { flex: 1; overflow-y: auto; padding: 32px 0; scroll-behavior: smooth; }
 
   .msg-wrapper {
     position: relative;
@@ -401,11 +209,7 @@
     margin-bottom: 8px;
     animation: fadeIn 0.3s ease;
   }
-  
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
   .msg-wrapper:hover .msg-actions { opacity: 1; transform: translateY(0); }
 
@@ -421,21 +225,11 @@
     align-items: center;
     gap: 8px;
   }
-  
-  .msg-role::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-    opacity: 0.8;
-  }
-
+  .msg-role::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.8; }
   .msg-role.user { color: var(--accent); }
   .msg-role.assistant { color: var(--green); }
   .msg-role.system { color: var(--amber); }
 
-  /* Message content container with glass effect */
   .msg-content-rendered {
     font-size: 15px;
     line-height: 1.75;
@@ -448,152 +242,31 @@
     cursor: text;
     transition: all 0.2s ease;
   }
-  
-  .msg-content-rendered:hover {
-    border-color: var(--glass-border-strong);
-    background: var(--surface-hover);
-  }
+  .msg-content-rendered:hover { border-color: var(--glass-border-strong); background: var(--surface-hover); }
 
-  /* Typography improvements */
   .msg-content-rendered p { margin-bottom: 1em; }
   .msg-content-rendered p:last-child { margin-bottom: 0; }
-  
-  .msg-content-rendered h1, 
-  .msg-content-rendered h2, 
-  .msg-content-rendered h3 {
-    font-weight: 600; 
-    margin: 1.5em 0 0.6em; 
-    color: var(--text);
-    letter-spacing: -0.02em;
-  }
-  
+  .msg-content-rendered h1, .msg-content-rendered h2, .msg-content-rendered h3 { font-weight: 600; margin: 1.5em 0 0.6em; color: var(--text); letter-spacing: -0.02em; }
   .msg-content-rendered h1 { font-size: 1.5em; }
   .msg-content-rendered h2 { font-size: 1.25em; }
   .msg-content-rendered h3 { font-size: 1.1em; }
-  
-  .msg-content-rendered ul, 
-  .msg-content-rendered ol { 
-    padding-left: 1.5em; 
-    margin-bottom: 1em; 
-  }
-  
+  .msg-content-rendered ul, .msg-content-rendered ol { padding-left: 1.5em; margin-bottom: 1em; }
   .msg-content-rendered li { margin-bottom: 0.3em; }
-  
-  .msg-content-rendered a { 
-    color: var(--cyan); 
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.2s;
-  }
-  
+  .msg-content-rendered a { color: var(--cyan); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 0.2s; }
   .msg-content-rendered a:hover { border-bottom-color: var(--cyan); }
-  
-  .msg-content-rendered strong { 
-    color: #fff; 
-    font-weight: 600; 
-  }
-  
-  .msg-content-rendered em { 
-    font-style: italic; 
-    color: var(--text-secondary);
-  }
-  
-  .msg-content-rendered blockquote {
-    border-left: 3px solid var(--accent);
-    padding-left: 16px;
-    color: var(--text-secondary);
-    margin: 1em 0;
-    font-style: italic;
-    background: rgba(167, 139, 250, 0.05);
-    padding: 12px 16px;
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  }
+  .msg-content-rendered strong { color: #fff; font-weight: 600; }
+  .msg-content-rendered em { font-style: italic; color: var(--text-secondary); }
+  .msg-content-rendered blockquote { border-left: 3px solid var(--accent); padding: 12px 16px; color: var(--text-secondary); margin: 1em 0; font-style: italic; background: rgba(167, 139, 250, 0.05); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+  .msg-content-rendered code { font-family: var(--font-mono); font-size: 13px; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.2); border-radius: 4px; padding: 2px 6px; color: var(--cyan); font-weight: 500; }
+  .msg-content-rendered .code-block { margin: 16px 0; border-radius: var(--radius-md); border: 1px solid var(--code-border); overflow: hidden; background: var(--code-bg); box-shadow: var(--shadow-md); }
+  .msg-content-rendered .code-block-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--code-border); }
+  .msg-content-rendered .code-lang { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; }
+  .msg-content-rendered .code-copy-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); color: var(--text-tertiary); font-family: var(--font-mono); font-size: 10px; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; letter-spacing: 0.02em; font-weight: 500; }
+  .msg-content-rendered .code-copy-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(167, 139, 250, 0.1); }
+  .msg-content-rendered .code-copy-btn.copied { color: var(--green); border-color: var(--green); background: rgba(74, 222, 128, 0.1); }
+  .msg-content-rendered pre { margin: 0; padding: 16px 20px; overflow-x: auto; background: transparent; }
+  .msg-content-rendered pre code { background: none; border: none; padding: 0; font-size: 13px; line-height: 1.6; color: #e2e8f0; border-radius: 0; font-weight: 400; }
 
-  /* Inline code */
-  .msg-content-rendered code {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    background: rgba(34, 211, 238, 0.1);
-    border: 1px solid rgba(34, 211, 238, 0.2);
-    border-radius: 4px;
-    padding: 2px 6px;
-    color: var(--cyan);
-    font-weight: 500;
-  }
-
-  /* Code block component - modern glass style */
-  .msg-content-rendered .code-block {
-    margin: 16px 0;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--code-border);
-    overflow: hidden;
-    background: var(--code-bg);
-    box-shadow: var(--shadow-md);
-  }
-  
-  .msg-content-rendered .code-block-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px;
-    background: rgba(255, 255, 255, 0.03);
-    border-bottom: 1px solid var(--code-border);
-  }
-  
-  .msg-content-rendered .code-lang {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-tertiary);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    font-weight: 500;
-  }
-  
-  .msg-content-rendered .code-copy-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--glass-border);
-    color: var(--text-tertiary);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    padding: 4px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    letter-spacing: 0.02em;
-    font-weight: 500;
-  }
-  
-  .msg-content-rendered .code-copy-btn:hover { 
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(167, 139, 250, 0.1);
-  }
-  
-  .msg-content-rendered .code-copy-btn.copied { 
-    color: var(--green); 
-    border-color: var(--green);
-    background: rgba(74, 222, 128, 0.1);
-  }
-  
-  .msg-content-rendered pre {
-    margin: 0;
-    padding: 16px 20px;
-    overflow-x: auto;
-    background: transparent;
-  }
-  
-  .msg-content-rendered pre code {
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: 13px;
-    line-height: 1.6;
-    color: #e2e8f0;
-    border-radius: 0;
-    font-weight: 400;
-  }
-
-  /* Raw edit textarea */
   .msg-content-edit {
     font-family: var(--font-mono);
     font-size: 14px;
@@ -645,32 +318,12 @@
     transition: all 0.15s ease;
     font-weight: 500;
   }
-  
-  .act-btn:hover { 
-    border-color: var(--glass-border-strong);
-    color: var(--text);
-    background: var(--surface-hover);
-  }
-  
-  .act-btn.del:hover { 
-    border-color: rgba(248, 113, 113, 0.5);
-    color: var(--red);
-    background: rgba(248, 113, 113, 0.1);
-  }
-  
-  .act-btn.run:hover {
-    border-color: rgba(74, 222, 128, 0.5);
-    color: var(--green);
-    background: rgba(74, 222, 128, 0.1);
-  }
-  
-  .act-btn.continue:hover {
-    border-color: rgba(34, 211, 238, 0.5);
-    color: var(--cyan);
-    background: var(--cyan-dim);
-  }
+  .act-btn:hover { border-color: var(--glass-border-strong); color: var(--text); background: var(--surface-hover); }
+  .act-btn.del:hover { border-color: rgba(248, 113, 113, 0.5); color: var(--red); background: rgba(248, 113, 113, 0.1); }
+  .act-btn.run:hover { border-color: rgba(74, 222, 128, 0.5); color: var(--green); background: rgba(74, 222, 128, 0.1); }
+  .act-btn.continue:hover { border-color: rgba(34, 211, 238, 0.5); color: var(--cyan); background: var(--cyan-dim); }
+  .act-btn.retry:hover { border-color: rgba(251, 191, 36, 0.5); color: var(--amber); background: rgba(251, 191, 36, 0.1); }
 
-  /* add message bar */
   .add-msg-bar {
     display: flex;
     justify-content: center;
@@ -680,11 +333,8 @@
     transition: all 0.3s ease;
     transform: translateY(-4px);
   }
-  
   .add-msg-bar:hover { opacity: 1; transform: translateY(0); }
-  
-  .msg-wrapper:hover + .add-msg-bar,
-  .add-msg-bar:hover { opacity: 1; transform: translateY(0); }
+  .msg-wrapper:hover + .add-msg-bar, .add-msg-bar:hover { opacity: 1; transform: translateY(0); }
 
   .add-btn {
     background: transparent;
@@ -699,23 +349,10 @@
     transition: all 0.2s ease;
     font-weight: 500;
   }
-  
-  .add-btn:hover { 
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(167, 139, 250, 0.1);
-    border-style: solid;
-  }
+  .add-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(167, 139, 250, 0.1); border-style: solid; }
 
-  /* add-at-end bar */
-  #add-end-bar { 
-    display: flex; 
-    justify-content: center; 
-    gap: 12px; 
-    padding: 16px 32px 8px; 
-  }
+  #add-end-bar { display: flex; justify-content: center; gap: 12px; padding: 16px 32px 8px; }
 
-  /* ── INPUT AREA ── */
   #input-area {
     border-top: 1px solid var(--glass-border);
     background: var(--glass);
@@ -743,94 +380,25 @@
     transition: all 0.2s ease;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
   }
-  
-  #chat-input:focus { 
-    border-color: var(--accent);
-    box-shadow: 
-      inset 0 2px 4px rgba(0, 0, 0, 0.2),
-      0 0 0 3px rgba(167, 139, 250, 0.1);
-  }
-  
+  #chat-input:focus { border-color: var(--accent); box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2), 0 0 0 3px rgba(167, 139, 250, 0.1); }
   #chat-input::placeholder { color: var(--text-muted); }
 
-  #btn-send {
-    background: linear-gradient(135deg, var(--accent-dim), var(--accent));
-    border: none;
-    color: #fff;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    padding: 14px 24px;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    height: 56px;
-    white-space: nowrap;
-    letter-spacing: 0.02em;
-    font-weight: 600;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 12px rgba(124, 58, 237, 0.3);
-  }
-  
-  #btn-send:hover { 
-    transform: translateY(-1px);
-    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
-  }
-  
+  #btn-send { background: linear-gradient(135deg, var(--accent-dim), var(--accent)); border: none; color: #fff; font-family: var(--font-mono); font-size: 13px; padding: 14px 24px; border-radius: var(--radius-md); cursor: pointer; height: 56px; white-space: nowrap; letter-spacing: 0.02em; font-weight: 600; transition: all 0.2s ease; box-shadow: 0 2px 12px rgba(124, 58, 237, 0.3); }
+  #btn-send:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4); }
   #btn-send:active { transform: translateY(0); }
-  
-  #btn-send:disabled { 
-    opacity: 0.4; 
-    cursor: default;
-    transform: none;
-    box-shadow: none;
-  }
+  #btn-send:disabled { opacity: 0.4; cursor: default; transform: none; box-shadow: none; }
 
-  #btn-stop {
-    background: rgba(248, 113, 113, 0.1);
-    border: 1px solid rgba(248, 113, 113, 0.3);
-    color: var(--red);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    padding: 14px 24px;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    height: 56px;
-    white-space: nowrap;
-    letter-spacing: 0.02em;
-    font-weight: 600;
-    transition: all 0.2s ease;
-  }
-  
-  #btn-stop:hover { 
-    background: var(--red);
-    color: #fff;
-    border-color: var(--red);
-    box-shadow: 0 4px 16px rgba(248, 113, 113, 0.3);
-  }
+  #btn-stop { background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); color: var(--red); font-family: var(--font-mono); font-size: 13px; padding: 14px 24px; border-radius: var(--radius-md); cursor: pointer; height: 56px; white-space: nowrap; letter-spacing: 0.02em; font-weight: 600; transition: all 0.2s ease; }
+  #btn-stop:hover { background: var(--red); color: #fff; border-color: var(--red); box-shadow: 0 4px 16px rgba(248, 113, 113, 0.3); }
 
-  /* streaming cursor - modern pulse */
-  .streaming-cursor::after {
-    content: '▋';
-    animation: pulse 1s ease-in-out infinite;
-    color: var(--accent);
-    margin-left: 2px;
-    font-weight: 300;
-  }
-  
-  @keyframes pulse { 
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
+  .streaming-cursor::after { content: '▋'; animation: pulse 1s ease-in-out infinite; color: var(--accent); margin-left: 2px; font-weight: 300; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-  /* scrollbar - minimal dark */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { 
-    background: rgba(255, 255, 255, 0.1); 
-    border-radius: 3px; 
-  }
+  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 
-  /* empty state - centered with glass effect */
   #empty-state {
     position: absolute;
     top: 50%;
@@ -848,166 +416,30 @@
     border-radius: var(--radius-lg);
     backdrop-filter: blur(10px);
   }
-  
-  #empty-state div:first-child { 
-    font-size: 32px; 
-    margin-bottom: 12px;
-    opacity: 0.5;
-  }
+  #empty-state div:first-child { font-size: 32px; margin-bottom: 12px; opacity: 0.5; }
 
-  /* modal - glassmorphism style */
-  .modal-bg {
-    position: fixed; 
-    inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
-    z-index: 100;
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-    animation: fadeIn 0.2s ease;
-  }
-  
-  .modal {
-    background: var(--bg-elevated);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-lg);
-    padding: 28px;
-    width: 520px;
-    max-width: 95vw;
-    box-shadow: var(--shadow-glow), var(--shadow-md);
-    animation: slideUp 0.3s ease;
-  }
-  
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  
-  .modal h3 { 
-    font-family: var(--font-mono); 
-    font-size: 13px; 
-    color: var(--text-secondary); 
-    margin-bottom: 20px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    font-weight: 600;
-  }
-  
-  .modal textarea {
-    width: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--glass-border);
-    color: var(--text);
-    font-family: var(--font-sans);
-    font-size: 14px;
-    padding: 12px;
-    border-radius: var(--radius-sm);
-    resize: vertical;
-    min-height: 120px;
-    outline: none;
-    margin-bottom: 16px;
-    transition: all 0.2s ease;
-  }
-  
-  .modal textarea:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
-  }
-  
-  .modal-btns { 
-    display: flex; 
-    gap: 10px; 
-    justify-content: flex-end; 
-  }
-  
-  .modal-btns button {
-    background: transparent;
-    border: 1px solid var(--glass-border);
-    color: var(--text-tertiary);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    padding: 8px 18px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-weight: 500;
-  }
-  
-  .modal-btns button:hover { 
-    border-color: var(--glass-border-strong);
-    color: var(--text);
-    background: var(--surface-hover);
-  }
-  
-  .modal-btns button.primary { 
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(167, 139, 250, 0.1);
-  }
-  
-  .modal-btns button.primary:hover { 
-    background: var(--accent);
-    color: #fff;
-    box-shadow: 0 2px 12px rgba(124, 58, 237, 0.3);
-  }
-  
-  .modal-role-sel { 
-    display: flex; 
-    gap: 10px; 
-    margin-bottom: 16px; 
-  }
-  
-  .role-opt {
-    flex: 1; 
-    padding: 10px; 
-    text-align: center;
-    border: 1px solid var(--glass-border); 
-    border-radius: var(--radius-sm);
-    font-family: var(--font-mono); 
-    font-size: 12px; 
-    cursor: pointer;
-    color: var(--text-tertiary); 
-    transition: all 0.2s ease;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-  
-  .role-opt:hover {
-    border-color: var(--glass-border-strong);
-    color: var(--text);
-    background: var(--surface-hover);
-  }
-  
-  .role-opt.sel { 
-    border-color: var(--accent); 
-    color: var(--accent); 
-    background: rgba(167, 139, 250, 0.15);
-    box-shadow: 0 0 20px rgba(167, 139, 250, 0.1);
-  }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease; }
+  .modal { background: var(--bg-elevated); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 28px; width: 520px; max-width: 95vw; box-shadow: var(--shadow-glow), var(--shadow-md); animation: slideUp 0.3s ease; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .modal h3 { font-family: var(--font-mono); font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
+  .modal textarea { width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--glass-border); color: var(--text); font-family: var(--font-sans); font-size: 14px; padding: 12px; border-radius: var(--radius-sm); resize: vertical; min-height: 120px; outline: none; margin-bottom: 16px; transition: all 0.2s ease; }
+  .modal textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1); }
+  .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+  .modal-btns button { background: transparent; border: 1px solid var(--glass-border); color: var(--text-tertiary); font-family: var(--font-mono); font-size: 12px; padding: 8px 18px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s ease; font-weight: 500; }
+  .modal-btns button:hover { border-color: var(--glass-border-strong); color: var(--text); background: var(--surface-hover); }
+  .modal-btns button.primary { border-color: var(--accent); color: var(--accent); background: rgba(167, 139, 250, 0.1); }
+  .modal-btns button.primary:hover { background: var(--accent); color: #fff; box-shadow: 0 2px 12px rgba(124, 58, 237, 0.3); }
+  .modal-role-sel { display: flex; gap: 10px; margin-bottom: 16px; }
+  .role-opt { flex: 1; padding: 10px; text-align: center; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 12px; cursor: pointer; color: var(--text-tertiary); transition: all 0.2s ease; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
+  .role-opt:hover { border-color: var(--glass-border-strong); color: var(--text); background: var(--surface-hover); }
+  .role-opt.sel { border-color: var(--accent); color: var(--accent); background: rgba(167, 139, 250, 0.15); box-shadow: 0 0 20px rgba(167, 139, 250, 0.1); }
 
-  .status-line {
-    padding: 8px 32px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-tertiary);
-    min-height: 32px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  
-  .status-line::before {
-    content: '›';
-    color: var(--accent);
-    font-weight: bold;
-  }
+  .status-line { padding: 8px 32px; font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); min-height: 32px; display: flex; align-items: center; gap: 8px; }
+  .status-line::before { content: '›'; color: var(--accent); font-weight: bold; }
 </style>
 </head>
 <body>
 
-<!-- SIDEBAR -->
 <div id="sidebar">
   <div id="sidebar-header">
     <span>history</span>
@@ -1022,7 +454,6 @@
   </div>
 </div>
 
-<!-- MAIN -->
 <div id="main">
   <div id="toolbar">
     <div class="toolbar-row">
@@ -1060,18 +491,14 @@
 
 <script>
 // ──────────────────────────────────────────────
-//  CONFIG (persisted to localStorage)
+//  CONFIG
 // ──────────────────────────────────────────────
 const CONFIG_KEY = 'llmchat_config';
 
 function loadConfig() {
   try { return JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}'); } catch { return {}; }
 }
-
-function saveConfig(cfg) {
-  localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
-}
-
+function saveConfig(cfg) { localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); }
 function getConfig() { return loadConfig(); }
 
 function applyConfigToUI() {
@@ -1103,36 +530,30 @@ function openConfigModal() {
   modal.innerHTML = `
     <h3>configuration</h3>
     <hr class="cfg-divider" style="margin-top:10px">
-
     <div class="cfg-field">
       <label class="cfg-label">API Endpoint</label>
       <input class="cfg-input" id="cfg-endpoint" type="text" placeholder="http://localhost:1234/v1"
         value="${escHtml(cfg.endpoint || document.getElementById('endpoint-input').value || '')}">
       <div class="cfg-hint">OpenAI-compatible base URL, no trailing slash</div>
     </div>
-
     <div class="cfg-field">
       <label class="cfg-label">Model</label>
       <input class="cfg-input" id="cfg-model" type="text" placeholder="local-model"
         value="${escHtml(cfg.model || document.getElementById('model-input').value || '')}">
     </div>
-
     <div class="cfg-field">
       <label class="cfg-label">API Key</label>
       <input class="cfg-input" id="cfg-apikey" type="password" placeholder="sk-… (optional)"
         value="${escHtml(cfg.apiKey || '')}">
       <div class="cfg-hint">Stored in localStorage · never sent anywhere except your endpoint</div>
     </div>
-
     <hr class="cfg-divider">
-
     <div class="cfg-field">
       <label class="cfg-label">Tokenizer (HuggingFace tag)</label>
       <input class="cfg-input" id="cfg-tok" type="text" placeholder="meta-llama/Llama-3.2-3B-Instruct"
         value="${escHtml(cfg.tokenizerTag || document.getElementById('tokenizer-input').value || '')}">
       <div class="cfg-hint">Used for "continue" — loads via Transformers.js</div>
     </div>
-
     <div class="modal-btns">
       <button class="cancel">cancel</button>
       <button class="primary">save</button>
@@ -1148,7 +569,6 @@ function openConfigModal() {
       tokenizerTag: modal.querySelector('#cfg-tok').value.trim(),
     };
     saveConfig(newCfg);
-    // sync live inputs
     if (newCfg.endpoint) document.getElementById('endpoint-input').value = newCfg.endpoint;
     if (newCfg.model) document.getElementById('model-input').value = newCfg.model;
     if (newCfg.tokenizerTag) document.getElementById('tokenizer-input').value = newCfg.tokenizerTag;
@@ -1167,14 +587,14 @@ function openConfigModal() {
 
 let db = null;
 let currentChatId = null;
-let messages = []; // {id, role, content}
+let messages = [];
 let isStreaming = false;
 let abortController = null;
 let tokenizer = null;
 let tokenizerTag = null;
 
 // ──────────────────────────────────────────────
-//  SQLITE INIT
+//  SQLITE
 // ──────────────────────────────────────────────
 async function initDB() {
   const SQL = await initSqlJs({
@@ -1187,19 +607,8 @@ async function initDB() {
   } else {
     db = new SQL.Database();
   }
-  db.run(`CREATE TABLE IF NOT EXISTS chats (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    created_at INTEGER,
-    updated_at INTEGER
-  )`);
-  db.run(`CREATE TABLE IF NOT EXISTS chat_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    chat_id INTEGER,
-    role TEXT,
-    content TEXT,
-    position INTEGER,
-    created_at INTEGER
-  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS chats (id INTEGER PRIMARY KEY AUTOINCREMENT, created_at INTEGER, updated_at INTEGER)`);
+  db.run(`CREATE TABLE IF NOT EXISTS chat_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, chat_id INTEGER, role TEXT, content TEXT, position INTEGER, created_at INTEGER)`);
   saveDB();
 }
 
@@ -1210,9 +619,6 @@ function saveDB() {
   localStorage.setItem('chatdb', b64);
 }
 
-// ──────────────────────────────────────────────
-//  CHAT CRUD
-// ──────────────────────────────────────────────
 function createChat() {
   const now = Date.now();
   db.run('INSERT INTO chats (created_at, updated_at) VALUES (?, ?)', [now, now]);
@@ -1292,17 +698,13 @@ function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ── MARKDOWN RENDERING ──
 function configureMarked() {
   if (!window.marked) return;
-
-  // marked v9: use marked.use() for everything
   marked.use({
     gfm: true,
     breaks: true,
     renderer: {
       code(token) {
-        // marked v9+ passes a token object; older builds pass (code, lang, escaped)
         const text = (typeof token === 'object' && token !== null) ? (token.text ?? token.raw ?? '') : (token ?? '');
         const lang = (typeof token === 'object' && token !== null) ? (token.lang ?? '') : (arguments[1] ?? '');
         const safeLang = String(lang).trim();
@@ -1327,12 +729,8 @@ function copyCode(btn) {
 
 function renderMarkdown(text) {
   if (!window.marked) return escHtml(text).replace(/\n/g,'<br>');
-  try {
-    return marked.parse(text || '');
-  } catch(e) {
-    console.error('marked error:', e);
-    return escHtml(text).replace(/\n/g,'<br>');
-  }
+  try { return marked.parse(text || ''); }
+  catch(e) { return escHtml(text).replace(/\n/g,'<br>'); }
 }
 
 function makeContentEl(m, idx) {
@@ -1345,7 +743,6 @@ function makeContentEl(m, idx) {
     const div = document.createElement('div');
     div.className = 'msg-content-rendered';
     div.innerHTML = renderMarkdown(m.content || '');
-    // Double-click anywhere (except inside code blocks) to edit
     div.addEventListener('dblclick', e => {
       if (e.target.closest('.code-block')) return;
       showEdit();
@@ -1361,29 +758,14 @@ function makeContentEl(m, idx) {
     ta.className = 'msg-content-edit';
     ta.value = m.content;
     ta.rows = Math.max(3, (m.content.match(/\n/g) || []).length + 2);
-    // auto-grow
-    ta.addEventListener('input', () => {
-      ta.style.height = 'auto';
-      ta.style.height = ta.scrollHeight + 'px';
-    });
-    ta.addEventListener('blur', () => {
-      m.content = ta.value;
-      messages[idx] = m;
-      autosave();
-      showRendered();
-    });
+    ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });
+    ta.addEventListener('blur', () => { m.content = ta.value; messages[idx] = m; autosave(); showRendered(); });
     ta.addEventListener('keydown', e => {
-      if (e.key === 'Escape') {
-        m.content = ta.value;
-        messages[idx] = m;
-        autosave();
-        showRendered();
-      }
+      if (e.key === 'Escape') { m.content = ta.value; messages[idx] = m; autosave(); showRendered(); }
     });
     container.appendChild(ta);
     ta.focus();
     ta.setSelectionRange(ta.value.length, ta.value.length);
-    // trigger auto-height
     ta.style.height = 'auto';
     ta.style.height = ta.scrollHeight + 'px';
   }
@@ -1396,10 +778,21 @@ function makeContentEl(m, idx) {
 
 function renderMessages() {
   msgContainer.innerHTML = '';
-  emptyState.style.display = messages.length ? 'none' : 'block';
-  addEndBar.style.display = messages.length ? 'flex' : 'none';
 
+  // Filter: skip empty assistant messages (those that failed to generate)
+  const visibleMessages = messages.filter((m, idx) => {
+    if (m.role === 'assistant' && (!m.content || m.content.trim() === '')) return false;
+    return true;
+  });
+
+  emptyState.style.display = visibleMessages.length ? 'none' : 'block';
+  addEndBar.style.display = visibleMessages.length ? 'flex' : 'none';
+
+  // We render using the original indices so edits/deletes map back correctly
   messages.forEach((m, idx) => {
+    // Skip empty assistant messages
+    if (m.role === 'assistant' && (!m.content || m.content.trim() === '')) return;
+
     const bar = insertBar(idx);
     msgContainer.appendChild(bar);
 
@@ -1416,17 +809,13 @@ function renderMessages() {
     const actions = document.createElement('div');
     actions.className = 'msg-actions';
 
-    // edit button (all roles)
+    // Edit button
     const editBtn = document.createElement('button');
     editBtn.className = 'act-btn';
     editBtn.textContent = 'edit';
-    // Use mousedown + preventDefault so the textarea doesn't lose focus (which would
-    // trigger blur -> showRendered) before the click fires -> showEdit again.
-    editBtn.addEventListener('mousedown', e => {
-      e.preventDefault(); // prevents textarea blur
-    });
+    editBtn.addEventListener('mousedown', e => e.preventDefault());
     editBtn.addEventListener('click', () => {
-      if (contentContainer._isEditing && contentContainer._isEditing()) return; // already editing
+      if (contentContainer._isEditing && contentContainer._isEditing()) return;
       contentContainer._showEdit && contentContainer._showEdit();
     });
     actions.appendChild(editBtn);
@@ -1440,11 +829,19 @@ function renderMessages() {
     }
 
     if (m.role === 'assistant') {
+      // Continue button
       const contBtn = document.createElement('button');
       contBtn.className = 'act-btn continue';
       contBtn.textContent = 'continue →';
       contBtn.onclick = () => continueFrom(idx);
       actions.appendChild(contBtn);
+
+      // Retry button — removes this assistant message and re-runs from the preceding user message
+      const retryBtn = document.createElement('button');
+      retryBtn.className = 'act-btn retry';
+      retryBtn.textContent = '↺ retry';
+      retryBtn.onclick = () => retryAssistant(idx);
+      actions.appendChild(retryBtn);
     }
 
     const delBtn = document.createElement('button');
@@ -1459,7 +856,6 @@ function renderMessages() {
     msgContainer.appendChild(wrapper);
   });
 
-  // trailing add bar
   const finalBar = insertBar(messages.length);
   finalBar.style.opacity = '0.4';
   msgContainer.appendChild(finalBar);
@@ -1485,10 +881,8 @@ function insertBar(afterIdx) {
 
   bar.appendChild(addU);
   bar.appendChild(addA);
-
   bar.addEventListener('mouseenter', () => bar.style.opacity = '1');
   bar.addEventListener('mouseleave', () => bar.style.opacity = '0');
-  // Also show when adjacent wrapper is hovered
   return bar;
 }
 
@@ -1520,15 +914,11 @@ function loadChat(id) {
 // ──────────────────────────────────────────────
 //  ADD / DELETE MESSAGE
 // ──────────────────────────────────────────────
-let addModalCallback = null;
-
 function openAddModal(defaultRole, atIndex) {
   const bg = document.createElement('div');
   bg.className = 'modal-bg';
-
   const modal = document.createElement('div');
   modal.className = 'modal';
-
   let selectedRole = defaultRole;
 
   modal.innerHTML = `
@@ -1582,6 +972,23 @@ function deleteMessage(idx) {
 }
 
 // ──────────────────────────────────────────────
+//  RETRY ASSISTANT MESSAGE
+//  Removes the assistant message at idx, then
+//  re-runs generation from the last user message
+// ──────────────────────────────────────────────
+async function retryAssistant(assistantIdx) {
+  if (isStreaming) return;
+
+  // Remove the assistant message and everything after it,
+  // then append a fresh empty assistant slot and stream into it
+  messages = messages.slice(0, assistantIdx);
+  messages.push({ role: 'assistant', content: '' });
+  renderMessages();
+  scrollBottom();
+  await doStream(messages.length - 1);
+}
+
+// ──────────────────────────────────────────────
 //  AUTOSAVE
 // ──────────────────────────────────────────────
 function autosave() {
@@ -1604,18 +1011,13 @@ function apiHeaders() {
 }
 
 async function chatCompletion(msgs) {
-  // first, trim all messages
   msgs = msgs.map(m => ({ ...m, content: m.content.trim() }));
   abortController = new AbortController();
   const res = await fetch(getEndpoint() + '/chat/completions', {
     method: 'POST',
     headers: apiHeaders(),
     signal: abortController.signal,
-    body: JSON.stringify({
-      model: getModel(),
-      messages: msgs,
-      stream: true
-    })
+    body: JSON.stringify({ model: getModel(), messages: msgs, stream: true })
   });
   return res;
 }
@@ -1626,11 +1028,7 @@ async function textCompletion(prompt) {
     method: 'POST',
     headers: apiHeaders(),
     signal: abortController.signal,
-    body: JSON.stringify({
-      model: getModel(),
-      prompt: prompt.trim(),
-      stream: true
-    })
+    body: JSON.stringify({ model: getModel(), prompt: prompt.trim(), stream: true })
   });
   return res;
 }
@@ -1654,15 +1052,13 @@ async function streamResponse(fetchPromise, onChunk) {
         if (data === '[DONE]') return;
         try {
           const json = JSON.parse(data);
-          const delta = json.choices?.[0]?.delta?.content
-            ?? json.choices?.[0]?.text
-            ?? '';
+          const delta = json.choices?.[0]?.delta?.content ?? json.choices?.[0]?.text ?? '';
           if (delta) onChunk(delta);
         } catch {}
       }
     }
   } catch(e) {
-    if (e.name === 'AbortError') return; // clean stop
+    if (e.name === 'AbortError') return;
     throw e;
   } finally {
     reader.cancel();
@@ -1670,7 +1066,7 @@ async function streamResponse(fetchPromise, onChunk) {
 }
 
 // ──────────────────────────────────────────────
-//  SEND (normal flow)
+//  SEND
 // ──────────────────────────────────────────────
 async function sendMessage() {
   const input = document.getElementById('chat-input');
@@ -1689,11 +1085,10 @@ async function sendMessage() {
 }
 
 // ──────────────────────────────────────────────
-//  RUN FROM (re-run from a user message)
+//  RUN FROM
 // ──────────────────────────────────────────────
 async function runFrom(userIdx) {
   if (isStreaming) return;
-  // truncate everything after this user message
   messages = messages.slice(0, userIdx + 1);
   messages.push({ role: 'assistant', content: '' });
   renderMessages();
@@ -1702,7 +1097,7 @@ async function runFrom(userIdx) {
 }
 
 // ──────────────────────────────────────────────
-//  CONTINUE (text completion)
+//  CONTINUE
 // ──────────────────────────────────────────────
 async function continueFrom(assistantIdx) {
   if (isStreaming) return;
@@ -1711,18 +1106,17 @@ async function continueFrom(assistantIdx) {
     return;
   }
 
-  // build prompt: apply chat template up to and including this assistant message
-  // but remove the EOS/end token so the model continues
   const msgsSlice = messages.slice(0, assistantIdx + 1);
   let prompt = await buildOpenPrompt(msgsSlice);
 
   setStatus('continuing…');
   setStreamingState(true);
 
-  // find the assistant content el
   renderMessages();
   const wrappers = msgContainer.querySelectorAll('.msg-wrapper');
-  const targetWrapper = wrappers[assistantIdx];
+  // Find the wrapper that corresponds to assistantIdx
+  let targetWrapper = null;
+  wrappers.forEach(w => { if (parseInt(w.dataset.idx) === assistantIdx) targetWrapper = w; });
   const contentEl = targetWrapper?.querySelector('.msg-content-rendered');
   if (contentEl) contentEl.classList.add('streaming-cursor');
 
@@ -1732,9 +1126,7 @@ async function continueFrom(assistantIdx) {
     await streamResponse(textCompletion(prompt), chunk => {
       accumulated += chunk;
       messages[assistantIdx].content = accumulated;
-      if (contentEl) {
-        contentEl.innerHTML = renderMarkdown(accumulated);
-      }
+      if (contentEl) contentEl.innerHTML = renderMarkdown(accumulated);
       scrollBottom();
     });
   } catch (e) {
@@ -1754,22 +1146,40 @@ async function doStream(assistantIdx) {
   setStreamingState(true);
   setStatus('generating…');
 
-  const wrappers = msgContainer.querySelectorAll('.msg-wrapper');
-  const targetWrapper = wrappers[assistantIdx];
-  const contentEl = targetWrapper?.querySelector('.msg-content-rendered');
-  if (contentEl) contentEl.classList.add('streaming-cursor');
+  // Re-render so the empty assistant block is hidden initially; we need to
+  // attach a live content element. Since empty assistant blocks are filtered,
+  // we temporarily inject a placeholder div into the DOM for streaming.
+  renderMessages();
+
+  // Find if a wrapper exists for this idx (it won't, since content is empty)
+  // Instead, create a temporary streaming element appended after the last wrapper
+  const streamDiv = document.createElement('div');
+  streamDiv.className = 'msg-wrapper';
+  streamDiv.dataset.idx = assistantIdx;
+
+  const roleEl = document.createElement('div');
+  roleEl.className = 'msg-role assistant';
+  roleEl.textContent = 'assistant';
+
+  const contentEl = document.createElement('div');
+  contentEl.className = 'msg-content-rendered streaming-cursor';
+
+  streamDiv.appendChild(roleEl);
+  streamDiv.appendChild(contentEl);
+
+  // Insert before the final add bar (last child of msgContainer)
+  const finalBar = msgContainer.lastChild;
+  msgContainer.insertBefore(streamDiv, finalBar);
+  scrollBottom();
 
   const msgsForApi = messages.slice(0, assistantIdx).map(m => ({ role: m.role, content: m.content }));
-
   let accumulated = '';
 
   try {
     await streamResponse(chatCompletion(msgsForApi), chunk => {
       accumulated += chunk;
       messages[assistantIdx].content = accumulated;
-      if (contentEl) {
-        contentEl.innerHTML = renderMarkdown(accumulated);
-      }
+      contentEl.innerHTML = renderMarkdown(accumulated);
       scrollBottom();
     });
   } catch (e) {
@@ -1777,23 +1187,21 @@ async function doStream(assistantIdx) {
     console.error(e);
   } finally {
     setStreamingState(false);
-    if (contentEl) contentEl.classList.remove('streaming-cursor');
+    contentEl.classList.remove('streaming-cursor');
     autosave();
     setStatus('');
+    // Re-render properly — if content is still empty (error/abort with no output),
+    // the empty assistant block will be filtered out automatically
+    renderMessages();
   }
 }
 
 // ──────────────────────────────────────────────
-//  TOKENIZER
+//  TOKENIZER / PYODIDE
 // ──────────────────────────────────────────────
-
-// ── CHAT TEMPLATE RENDERING (via Pyodide — real Python jinja2) ──
-// JS Jinja engines don't support the full Jinja2 spec (~ operator, namespace(),
-// loop.changed(), etc.) used by complex templates like MiniMax.
-// Pyodide runs CPython in the browser via WASM, giving us 100% compatible rendering.
 let chatTemplateStr = null;
 let chatTemplateSpecialTokens = {};
-let pyodideReady = null;  // Promise<pyodide>
+let pyodideReady = null;
 
 async function loadPyodide_() {
   if (pyodideReady) return pyodideReady;
@@ -1808,10 +1216,7 @@ async function loadPyodide_() {
     }
     const py = await window.loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.27.0/full/' });
     await py.loadPackage('micropip');
-    await py.runPythonAsync(`
-import micropip
-await micropip.install('jinja2')
-`);
+    await py.runPythonAsync(`import micropip\nawait micropip.install('jinja2')`);
     return py;
   })();
   return pyodideReady;
@@ -1819,42 +1224,21 @@ await micropip.install('jinja2')
 
 async function renderChatTemplate(tmplStr, specialTokens, messages, addGenerationPrompt) {
   const py = await loadPyodide_();
-
-  // Pass ALL data as a single JSON string to avoid any JS->Python proxy mangling
   const payload = JSON.stringify({ tmpl: tmplStr, special: specialTokens, messages, addGenPrompt: addGenerationPrompt });
   py.globals.set('_payload_json', payload);
-
   const result = await py.runPythonAsync(`
 import jinja2, json
-
 data = json.loads(_payload_json)
 tmpl_str = data['tmpl']
-import sys
-print('[py-jinja] template first 300 chars:', repr(tmpl_str[:300]), file=sys.stderr)
 special  = data['special']
 msgs     = data['messages']
 add_gen  = data['addGenPrompt']
-
 bos = special.pop('bos_token', '')
 eos = special.pop('eos_token', '')
-
-env = jinja2.Environment(
-    loader=jinja2.BaseLoader(),
-    keep_trailing_newline=True,
-    trim_blocks=False,
-    lstrip_blocks=False,
-)
+env = jinja2.Environment(loader=jinja2.BaseLoader(), keep_trailing_newline=True, trim_blocks=False, lstrip_blocks=False)
 env.globals['raise_exception'] = lambda msg: (_ for _ in ()).throw(Exception(msg))
-
 template = env.from_string(tmpl_str)
-rendered = template.render(
-    messages=msgs,
-    add_generation_prompt=bool(add_gen),
-    bos_token=bos,
-    eos_token=eos,
-    **special,
-)
-print('[py-jinja] rendered first 400 chars:', repr(rendered[:400]), file=sys.stderr)
+rendered = template.render(messages=msgs, add_generation_prompt=bool(add_gen), bos_token=bos, eos_token=eos, **special)
 rendered
 `);
   return result;
@@ -1862,76 +1246,45 @@ rendered
 
 async function fetchChatTemplate(tag) {
   const base = `https://huggingface.co/${tag}/resolve/main`;
-  const hfApi = `https://huggingface.co/api/models/${tag}`;
-
-  // Always fetch tokenizer_config.json for special tokens (bos/eos etc.)
   let specialTokens = {};
   let tokenizerConfig = null;
   try {
     const cfgRes = await fetch(`${base}/tokenizer_config.json`);
-    console.debug('[tokenizer] tokenizer_config.json status:', cfgRes.status, cfgRes.headers.get('content-type'));
     if (cfgRes.ok) {
       tokenizerConfig = await cfgRes.json();
       for (const [k, v] of Object.entries(tokenizerConfig)) {
         if (typeof v === 'string' && k.endsWith('_token')) specialTokens[k] = v;
         else if (v && typeof v === 'object' && v.content && k.endsWith('_token')) specialTokens[k] = v.content;
       }
-      console.debug('[tokenizer] special tokens found:', Object.keys(specialTokens));
-    }
-  } catch(e) { console.error('[tokenizer] tokenizer_config.json error:', e); }
-
-  // 1. Standalone chat_template.jinja (MiniMax and others)
-  try {
-    const res = await fetch(`${base}/chat_template.jinja`);
-    console.debug('[tokenizer] chat_template.jinja status:', res.status, res.headers.get('content-type'));
-    if (res.ok) {
-      const text = await res.text();
-      console.debug('[tokenizer] chat_template.jinja length:', text.length, 'first 200:', JSON.stringify(text.slice(0, 200)));
-      if (text && text.trim().length > 10) {
-        return { template: text, special_tokens: specialTokens };
-      }
-    }
-  } catch(e) { console.error('[tokenizer] chat_template.jinja error:', e); }
-
-  // 2. tokenizer_config.json → chat_template key
-  if (tokenizerConfig?.chat_template) {
-    const ct = tokenizerConfig.chat_template;
-    if (typeof ct === 'string') {
-      console.debug('[tokenizer] template from tokenizer_config.json (string), first 200:', JSON.stringify(ct.slice(0, 200)));
-      return { template: ct, special_tokens: specialTokens };
-    }
-    if (Array.isArray(ct)) {
-      const entry = ct.find(t => t.name === 'default') || ct[0];
-      if (entry?.template) {
-        console.debug('[tokenizer] template from tokenizer_config.json (array:', entry.name, '), first 200:', JSON.stringify(entry.template.slice(0, 200)));
-        return { template: entry.template, special_tokens: specialTokens };
-      }
-    }
-  }
-
-  // 3. HuggingFace API (returns model card + siblings, but also has config)
-  try {
-    const res = await fetch(hfApi);
-    if (res.ok) {
-      const info = await res.json();
-      console.debug('[tokenizer] HF API model info keys:', Object.keys(info));
     }
   } catch(e) {}
 
-  // 4. tokenizer.json
+  try {
+    const res = await fetch(`${base}/chat_template.jinja`);
+    if (res.ok) {
+      const text = await res.text();
+      if (text && text.trim().length > 10) return { template: text, special_tokens: specialTokens };
+    }
+  } catch(e) {}
+
+  if (tokenizerConfig?.chat_template) {
+    const ct = tokenizerConfig.chat_template;
+    if (typeof ct === 'string') return { template: ct, special_tokens: specialTokens };
+    if (Array.isArray(ct)) {
+      const entry = ct.find(t => t.name === 'default') || ct[0];
+      if (entry?.template) return { template: entry.template, special_tokens: specialTokens };
+    }
+  }
+
   try {
     const res = await fetch(`${base}/tokenizer.json`);
     if (res.ok) {
       const tj = await res.json();
       const t = typeof tj.chat_template === 'string' ? tj.chat_template : tj.chat_template?.[0]?.template;
-      if (t) {
-        console.debug('[tokenizer] template from tokenizer.json, first 200:', JSON.stringify(t.slice(0, 200)));
-        return { template: t, special_tokens: specialTokens };
-      }
+      if (t) return { template: t, special_tokens: specialTokens };
     }
-  } catch(e) { console.error('[tokenizer] tokenizer.json error:', e); }
+  } catch(e) {}
 
-  console.error('[tokenizer] no template found from any source');
   return null;
 }
 
@@ -1941,28 +1294,21 @@ async function loadTokenizer() {
   const status = document.getElementById('tok-status');
   status.textContent = 'loading pyodide + jinja2…';
   try {
-    // Kick off Pyodide load immediately (takes a few seconds)
     const pyPromise = loadPyodide_();
-
     const result = await fetchChatTemplate(tag);
     if (!result) {
       status.textContent = '⚠ no chat_template found';
       status.style.color = 'var(--amber)';
       return;
     }
-
     chatTemplateStr = result.template;
     chatTemplateSpecialTokens = result.special_tokens;
     tokenizerTag = tag;
-    tokenizer = { chat_template: chatTemplateStr }; // marker for "loaded" checks
-
-    // Wait for Pyodide to finish
+    tokenizer = { chat_template: chatTemplateStr };
     status.textContent = 'waiting for pyodide…';
     await pyPromise;
-
     status.textContent = '✓ ' + tag.split('/').pop();
     status.style.color = 'var(--green)';
-    console.debug('[tokenizer] special tokens:', chatTemplateSpecialTokens);
   } catch (e) {
     status.textContent = 'error: ' + e.message.slice(0, 60);
     status.style.color = 'var(--red)';
@@ -1970,57 +1316,20 @@ async function loadTokenizer() {
     chatTemplateStr = null;
   }
 }
-async function buildOpenPrompt(msgs) {
-  if (!chatTemplateStr) throw new Error('no chat template loaded — load a tokenizer first');
 
+async function buildOpenPrompt(msgs) {
+  if (!chatTemplateStr) throw new Error('no chat template loaded');
   const chat = msgs.map(m => ({ role: m.role, content: m.content }));
   const lastMsg = chat[chat.length - 1];
+  if (lastMsg.role !== 'assistant') throw new Error('Last message must be assistant for continue');
 
-  if (lastMsg.role !== 'assistant') {
-    throw new Error('Last message must be assistant for continue');
-  }
+  const prefixText = await renderChatTemplate(chatTemplateStr, chatTemplateSpecialTokens, chat.slice(0, -1), true);
+  const fullText = await renderChatTemplate(chatTemplateStr, chatTemplateSpecialTokens, chat, false);
 
-  try {
-    // Render WITHOUT the last message, with add_generation_prompt=true
-    // This gives us the prefix up to where the assistant content begins
-    const prefixText = await renderChatTemplate(
-      chatTemplateStr, chatTemplateSpecialTokens,
-      chat.slice(0, -1), true
-    );
-
-    // Full render WITH the last message, no generation prompt
-    const fullText = await renderChatTemplate(
-      chatTemplateStr, chatTemplateSpecialTokens,
-      chat, false
-    );
-
-    console.debug('[continue] prefix tail:', JSON.stringify(prefixText.slice(-60)));
-    console.debug('[continue] full text from prefix offset:', JSON.stringify(fullText.slice(prefixText.length, prefixText.length + 120)));
-
-    // Everything from start up to end of assistant content
-    // The content starts at prefixText.length; find where it ends by
-    // searching for lastMsg.content starting at that offset
-    const contentStart = prefixText.length;
-    const contentEnd = fullText.indexOf(lastMsg.content, contentStart);
-
-    if (contentEnd === -1) {
-      // Fallback: content might be slightly transformed (e.g. whitespace).
-      // Use prefix + raw content directly.
-      console.warn('[continue] content not found after prefix, using prefix + raw content');
-      return prefixText + lastMsg.content;
-    }
-
-    const openPrompt = fullText.slice(0, contentEnd + lastMsg.content.length);
-    const stripped = fullText.slice(contentEnd + lastMsg.content.length);
-    console.debug('[continue] closing suffix stripped:', JSON.stringify(stripped));
-    console.debug('[continue] open prompt tail:', JSON.stringify(openPrompt.slice(-120)));
-    return openPrompt;
-
-  } catch (e) {
-    console.error('chat template error', e);
-    setStatus('\u26a0 template error: ' + e.message.slice(0, 80));
-    throw e;
-  }
+  const contentStart = prefixText.length;
+  const contentEnd = fullText.indexOf(lastMsg.content, contentStart);
+  if (contentEnd === -1) return prefixText + lastMsg.content;
+  return fullText.slice(0, contentEnd + lastMsg.content.length);
 }
 
 // ──────────────────────────────────────────────
@@ -2045,10 +1354,7 @@ document.getElementById('btn-stop').addEventListener('click', stopStreaming);
 document.getElementById('btn-load-tok').addEventListener('click', loadTokenizer);
 
 document.getElementById('chat-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 
 // ──────────────────────────────────────────────
@@ -2059,14 +1365,9 @@ document.getElementById('chat-input').addEventListener('keydown', e => {
   applyConfigToUI();
   await initDB();
   const chats = getAllChats();
-  if (chats.length) {
-    loadChat(chats[0].id);
-  } else {
-    newChat();
-  }
+  if (chats.length) { loadChat(chats[0].id); } else { newChat(); }
   renderHistory();
 
-  // persist endpoint/model edits live
   document.getElementById('endpoint-input').addEventListener('change', () => {
     const cfg = getConfig();
     cfg.endpoint = document.getElementById('endpoint-input').value.trim().replace(/\/$/, '');
