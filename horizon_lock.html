@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HORIZON LOCK</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&display=swap');
+  :root { --accent:#00ffaa; --danger:#ff3355; --warn:#ffcc00; --dim:#555; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#000; font-family:'Share Tech Mono',monospace; height:100dvh; overflow:hidden; user-select:none; color:#e8e8e8; }
+  #viewport { position:relative; width:100%; height:100dvh; overflow:hidden; background:#000; }
+  #camFeed { display:none; }
+  #previewCanvas { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; background:#000; }
+
+  #ui { position:absolute; inset:0; pointer-events:none; display:flex; flex-direction:column; justify-content:space-between; padding:24px 20px 36px; z-index:10; }
+  #header { display:flex; justify-content:space-between; align-items:flex-start; }
+  #title { font-family:'Bebas Neue',sans-serif; font-size:2.2rem; letter-spacing:0.1em; color:var(--accent); text-shadow:0 0 20px rgba(0,255,170,0.5); line-height:1; }
+  #title span { display:block; font-size:0.55rem; letter-spacing:0.3em; color:var(--dim); font-family:'Share Tech Mono',monospace; margin-top:2px; }
+
+  #debug { text-align:right; font-size:0.65rem; color:var(--dim); line-height:2; letter-spacing:0.05em; }
+  #debug .val { color:var(--accent); }
+  #debug .corr { color:var(--warn); }
+
+  #crosshair { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:60px; height:60px; opacity:0.4; pointer-events:none; }
+  #crosshair::before,#crosshair::after { content:''; position:absolute; background:var(--accent); }
+  #crosshair::before { width:1px; height:100%; left:50%; }
+  #crosshair::after  { height:1px; width:100%; top:50%; }
+  .ch-corner { position:absolute; width:10px; height:10px; border-color:var(--accent); border-style:solid; opacity:0.8; }
+  .ch-corner.tl { top:0; left:0; border-width:1px 0 0 1px; }
+  .ch-corner.tr { top:0; right:0; border-width:1px 1px 0 0; }
+  .ch-corner.bl { bottom:0; left:0; border-width:0 0 1px 1px; }
+  .ch-corner.br { bottom:0; right:0; border-width:0 1px 1px 0; }
+
+  #horizonLine { position:absolute; left:5%; right:5%; top:50%; height:1px; background:linear-gradient(90deg,transparent,var(--warn),transparent); opacity:0; transition:opacity 0.3s; pointer-events:none; }
+  #horizonLine.active { opacity:0.7; animation:pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:.7} 50%{opacity:.25} }
+
+  #tiltIndicator { position:absolute; bottom:200px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:4px; opacity:0; transition:opacity 0.3s; }
+  #tiltIndicator.visible { opacity:1; }
+  #tiltBar { width:200px; height:3px; background:#222; border-radius:2px; position:relative; }
+  #tiltCenter { position:absolute; top:-2px; left:50%; width:1px; height:7px; background:var(--dim); }
+  #tiltFill { position:absolute; top:0; height:100%; width:4px; background:var(--accent); left:50%; transform:translateX(-50%); border-radius:2px; }
+  #tiltValue { font-size:0.6rem; color:var(--dim); letter-spacing:0.1em; }
+
+  #controls { display:flex; flex-direction:column; gap:12px; align-items:center; pointer-events:all; }
+  #recTimer { font-size:0.65rem; letter-spacing:0.2em; color:var(--danger); opacity:0; transition:opacity 0.3s; }
+  #recTimer.visible { opacity:1; }
+  #statusBar { font-size:0.6rem; letter-spacing:0.2em; color:var(--dim); min-height:14px; text-align:center; }
+  #statusBar.locked { color:var(--accent); }
+  #statusBar.recording { color:var(--danger); animation:blink 1s step-end infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  #btnRow { display:flex; gap:16px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  .btn { cursor:pointer; font-family:'Bebas Neue',sans-serif; letter-spacing:0.12em; border:1px solid; background:transparent; transition:all 0.2s; -webkit-tap-highlight-color:transparent; border-radius:3px; }
+  #btnHorizon { padding:10px 24px; font-size:1.1rem; border-color:var(--accent); color:var(--accent); }
+  #btnHorizon.active { background:var(--accent); color:#000; box-shadow:0 0 20px rgba(0,255,170,0.4); }
+  #btnRecord { width:58px; height:58px; border-radius:50%; border:2px solid var(--danger); background:transparent; position:relative; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  #btnRecord::before { content:''; position:absolute; inset:5px; border-radius:50%; background:var(--danger); transition:all 0.2s; }
+  #btnRecord.recording::before { border-radius:4px; inset:14px; }
+  #btnRecord:active { transform:scale(0.95); }
+  #btnFlip { padding:8px 16px; font-size:0.85rem; border-color:var(--dim); color:var(--dim); }
+  #btnFlip.active { border-color:var(--warn); color:var(--warn); }
+
+  #scanlines { position:absolute; inset:0; pointer-events:none; z-index:8; background:repeating-linear-gradient(to bottom,transparent 0px,transparent 3px,rgba(0,0,0,0.05) 3px,rgba(0,0,0,0.05) 4px); }
+  #vignette  { position:absolute; inset:0; pointer-events:none; z-index:7; background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,0.6) 100%); }
+
+  #permOverlay { position:absolute; inset:0; background:#0a0a0a; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; z-index:100; padding:40px; }
+  #permOverlay h1 { font-family:'Bebas Neue',sans-serif; font-size:3.5rem; color:var(--accent); text-shadow:0 0 30px rgba(0,255,170,0.4); letter-spacing:0.1em; text-align:center; line-height:1; }
+  #permOverlay p { color:var(--dim); font-size:0.75rem; letter-spacing:0.1em; text-align:center; line-height:1.8; max-width:280px; }
+  #btnStart { padding:14px 40px; font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:0.2em; border:1px solid var(--accent); color:var(--accent); background:transparent; cursor:pointer; border-radius:3px; transition:all 0.2s; }
+  #btnStart:active { background:var(--accent); color:#000; }
+  #errorMsg { color:var(--danger); font-size:0.7rem; letter-spacing:0.1em; text-align:center; display:none; line-height:1.6; max-width:300px; }
+</style>
+</head>
+<body>
+<div id="viewport">
+  <video id="camFeed" autoplay playsinline muted></video>
+  <canvas id="previewCanvas"></canvas>
+  <div id="horizonLine"></div>
+  <div id="crosshair">
+    <div class="ch-corner tl"></div><div class="ch-corner tr"></div>
+    <div class="ch-corner bl"></div><div class="ch-corner br"></div>
+  </div>
+  <div id="tiltIndicator">
+    <div id="tiltBar"><div id="tiltCenter"></div><div id="tiltFill"></div></div>
+    <div id="tiltValue">TILT: 0.0&#176;</div>
+  </div>
+  <div id="scanlines"></div>
+  <div id="vignette"></div>
+
+  <div id="ui">
+    <div id="header">
+      <div><div id="title">HORIZON<br>LOCK<span>STABILIZATION SYSTEM v1.0</span></div></div>
+      <div id="debug">
+        &beta; <span class="val" id="dBeta">--</span><br>
+        &gamma; <span class="val" id="dGamma">--</span><br>
+        ROLL <span class="val" id="dRoll">--</span><br>
+        REF <span class="val" id="dRef">--</span><br>
+        CORR <span class="corr" id="dCorr">--</span>
+      </div>
+    </div>
+    <div id="controls">
+      <div id="recTimer">&#9679; REC <span id="recTime">00:00</span></div>
+      <div id="statusBar">GYRO: STANDBY</div>
+      <div id="btnRow">
+        <button class="btn" id="btnHorizon">HOLD HORIZON</button>
+        <button class="btn" id="btnRecord"></button>
+        <button class="btn" id="btnFlip">FLIP</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="permOverlay">
+    <h1>HORIZON<br>LOCK</h1>
+    <p>GYROSCOPE-STABILIZED CAMERA<br><br>REQUIRES ACCESS TO:<br>CAMERA &middot; GYROSCOPE &middot; MICROPHONE</p>
+    <button id="btnStart">INITIALIZE</button>
+    <div id="errorMsg"></div>
+  </div>
+</div>
+<script>
+(function () {
+  // ── State ──────────────────────────────────────────────────────────────────
+  let rawStream       = null;
+  let canvasStream    = null;
+  let mediaRecorder   = null;
+  let chunks          = [];
+  let isRecording     = false;
+  let intentionalStop = false;
+
+  let horizonLocked   = false;
+  let refRoll         = 0;
+  
+  let currentRoll     = 0;   // raw gyro target roll
+  let smoothedRoll    = 0;   // deeply interpolated smooth roll used for rendering
+  let rollInitialized = false;
+  let lastTime        = 0;   // for delta-time calculations
+  
+  let currentBeta     = 0;
+  let currentGamma    = 0;
+  let signFlip        = 1;
+
+  let recStart    = null;
+  let recInterval = null;
+  let gyroActive  = false;
+
+  // ── DOM ────────────────────────────────────────────────────────────────────
+  const camFeed     = document.getElementById('camFeed');
+  const canvas      = document.getElementById('previewCanvas');
+  const ctx         = canvas.getContext('2d');
+  const permOverlay = document.getElementById('permOverlay');
+  const errorMsg    = document.getElementById('errorMsg');
+  const statusBar   = document.getElementById('statusBar');
+  const horizonLine = document.getElementById('horizonLine');
+  const tiltInd     = document.getElementById('tiltIndicator');
+  const tiltFill    = document.getElementById('tiltFill');
+  const tiltValue   = document.getElementById('tiltValue');
+  const recTimer    = document.getElementById('recTimer');
+  const recTimeEl   = document.getElementById('recTime');
+  const dBeta       = document.getElementById('dBeta');
+  const dGamma      = document.getElementById('dGamma');
+  const dRoll       = document.getElementById('dRoll');
+  const dRef        = document.getElementById('dRef');
+  const dCorr       = document.getElementById('dCorr');
+  const btnStart    = document.getElementById('btnStart');
+  const btnHorizon  = document.getElementById('btnHorizon');
+  const btnRecord   = document.getElementById('btnRecord');
+  const btnFlip     = document.getElementById('btnFlip');
+
+  // ── Gyroscope ──────────────────────────────────────────────────────────────
+  function computeRoll(beta, gamma) {
+    const rad = Math.PI / 180;
+    const b = beta * rad;
+    const g = gamma * rad;
+    const x_up = -Math.sin(g) * Math.cos(b);
+    const y_up = Math.sin(b);
+    return Math.atan2(x_up, y_up) * 180 / Math.PI;
+  }
+
+  function handleOrientation(e) {
+    gyroActive   = true;
+    currentBeta  = e.beta  || 0;
+    currentGamma = e.gamma || 0;
+
+    currentRoll = computeRoll(currentBeta, currentGamma);
+    
+    // Snap to target instantly on the very first read
+    if (!rollInitialized) {
+      smoothedRoll = currentRoll;
+      rollInitialized = true;
+    }
+
+    dBeta.textContent  = currentBeta.toFixed(1)  + '\u00b0';
+    dGamma.textContent = currentGamma.toFixed(1) + '\u00b0';
+    dRoll.textContent  = currentRoll.toFixed(1)  + '\u00b0';
+    dRef.textContent   = refRoll.toFixed(1)      + '\u00b0';
+
+    if (!statusBar.classList.contains('recording') && !statusBar.classList.contains('locked'))
+      statusBar.textContent = 'GYRO: ACTIVE';
+  }
+
+  async function requestGyro() {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      try {
+        if (await DeviceOrientationEvent.requestPermission() === 'granted')
+          window.addEventListener('deviceorientation', handleOrientation);
+      } catch(e) {}
+    } else {
+      window.addEventListener('deviceorientation', handleOrientation);
+    }
+  }
+
+  // ── Canvas setup ───────────────────────────────────────────────────────────
+  let srcW = 0, srcH = 0;
+  let canvasW = 0, canvasH = 0;
+
+  function initCanvasSize() {
+    srcW = camFeed.videoWidth;
+    srcH = camFeed.videoHeight;
+    const maxLong = 1280;
+    const scale   = Math.min(1, maxLong / Math.max(srcW, srcH));
+
+    if (srcW > srcH) {
+      canvasW = Math.round(srcH * scale);
+      canvasH = Math.round(srcW * scale);
+    } else {
+      canvasW = Math.round(srcW * scale);
+      canvasH = Math.round(srcH * scale);
+    }
+    canvas.width  = canvasW;
+    canvas.height = canvasH;
+  }
+
+  // ── Render loop (Adaptive Filter & Frame Sync) ──────────────────────────────
+  function scheduleNextFrame() {
+    // requestVideoFrameCallback perfectly syncs rotation application to new camera frames
+    // eliminating the "judder" caused by drawing the same frame twice
+    if ('requestVideoFrameCallback' in camFeed) {
+      camFeed.requestVideoFrameCallback(drawFrame);
+    } else {
+      requestAnimationFrame(drawFrame);
+    }
+  }
+
+  function drawFrame() {
+    if (!srcW || !rollInitialized) {
+      scheduleNextFrame();
+      return;
+    }
+
+    // -- Frame-Rate Independence (Delta Time) --
+    const now = performance.now();
+    if (!lastTime) lastTime = now;
+    const dt = Math.max(1, Math.min(now - lastTime, 100)); // cap large spikes
+    lastTime = now;
+    const dtRatio = dt / 16.666; // Normalize to expected 60fps pacing
+
+    const W = canvasW;
+    const H = canvasH;
+
+    // -- Adaptive Smoothing (Noise Gate) --
+    let diff = currentRoll - smoothedRoll;
+    diff = ((diff + 180) % 360 + 360) % 360 - 180; // normalize -180 to 180
+
+    const absDiff = Math.abs(diff);
+    
+    const BASE_SMOOTHING = 0.02; // Tiny factor blocks sensor micro-vibrations
+    const MAX_SMOOTHING  = 0.35; // Large factor allows quick, responsive turns
+    const THRESHOLD      = 5.0;  // Deg gap where the factor hits max speed
+
+    // Blend dynamically: Still/slow = super smooth. Moving fast = responsive.
+    let targetFactor = BASE_SMOOTHING + Math.min(absDiff / THRESHOLD, 1.0) * (MAX_SMOOTHING - BASE_SMOOTHING);
+    
+    // Scale smoothing factor accurately against time elapsed (so lag/stutter doesn't alter speed)
+    const factor = 1 - Math.pow(1 - targetFactor, dtRatio);
+
+    smoothedRoll += diff * factor;
+    smoothedRoll = ((smoothedRoll + 180) % 360 + 360) % 360 - 180;
+
+    let delta = smoothedRoll - refRoll;
+    delta = ((delta + 180) % 360 + 360) % 360 - 180;
+    const correctionAngle = horizonLocked ? -signFlip * delta : 0;
+
+    // Update UI
+    dCorr.textContent = correctionAngle.toFixed(1) + '\u00b0';
+    const pct = Math.max(-1, Math.min(1, correctionAngle / 90));
+    tiltFill.style.left = 'calc(50% + ' + (pct * 90) + 'px)';
+    tiltValue.textContent = 'CORR: ' + correctionAngle.toFixed(1) + '\u00b0';
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+
+    const corrRad = correctionAngle * Math.PI / 180;
+    const cosA = Math.abs(Math.cos(corrRad));
+    const sinA = Math.abs(Math.sin(corrRad));
+
+    // Calculate boundary fit
+    let fillScale = Math.max(
+      (W * cosA + H * sinA) / W,
+      (W * sinA + H * cosA) / H
+    );
+    
+    // Anti-Shimmer trick: round scale bounds to 3rd decimal and add 0.005 padding 
+    // to stop the video borders from micro-vibrating during float rotation
+    fillScale = (Math.ceil(fillScale * 1000) / 1000) + 0.005;
+
+    if (srcW > srcH) {
+      const totalRad = (-Math.PI / 2) + corrRad;
+      ctx.rotate(totalRad);
+      ctx.scale(fillScale, fillScale);
+      const s = W / srcH;
+      ctx.drawImage(camFeed, -srcW * s / 2, -srcH * s / 2, srcW * s, srcH * s);
+    } else {
+      ctx.rotate(corrRad);
+      ctx.scale(fillScale, fillScale);
+      ctx.drawImage(camFeed, -W / 2, -H / 2, W, H);
+    }
+
+    ctx.restore();
+    scheduleNextFrame();
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  async function initCamera() {
+    btnStart.textContent = 'LOADING...';
+    btnStart.disabled = true;
+    try {
+      rawStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+        audio: true
+      });
+      camFeed.srcObject = rawStream;
+      await new Promise(r => { camFeed.onloadedmetadata = r; });
+      await camFeed.play();
+      initCanvasSize();
+      await requestGyro();
+      permOverlay.style.display = 'none';
+      
+      lastTime = performance.now();
+      scheduleNextFrame();
+      canvasStream = canvas.captureStream(30);
+    } catch (err) {
+      btnStart.textContent = 'RETRY';
+      btnStart.disabled = false;
+      let msg = err.message || 'PERMISSION DENIED';
+      if (err.name === 'NotAllowedError')  msg = 'CAMERA PERMISSION DENIED';
+      if (err.name === 'NotFoundError')    msg = 'NO CAMERA FOUND';
+      if (err.name === 'NotReadableError') msg = 'CAMERA IN USE BY ANOTHER APP';
+      errorMsg.style.display = 'block';
+      errorMsg.textContent = '\u26a0 ' + msg;
+    }
+  }
+
+  // ── Horizon lock ───────────────────────────────────────────────────────────
+  btnHorizon.addEventListener('click', () => {
+    horizonLocked = !horizonLocked;
+    if (horizonLocked) {
+      refRoll = smoothedRoll;
+      btnHorizon.classList.add('active');
+      horizonLine.classList.add('active');
+      tiltInd.classList.add('visible');
+      statusBar.className   = 'locked';
+      statusBar.textContent = 'HORIZON LOCKED';
+    } else {
+      btnHorizon.classList.remove('active');
+      horizonLine.classList.remove('active');
+      tiltInd.classList.remove('visible');
+      statusBar.className   = '';
+      statusBar.textContent = gyroActive ? 'GYRO: ACTIVE' : 'GYRO: STANDBY';
+    }
+  });
+
+  // ── Flip ───────────────────────────────────────────────────────────────────
+  btnFlip.addEventListener('click', () => {
+    signFlip *= -1;
+    btnFlip.classList.toggle('active', signFlip === -1);
+    if (horizonLocked) refRoll = smoothedRoll;
+  });
+
+  // ── Recording ──────────────────────────────────────────────────────────────
+  btnRecord.addEventListener('click', () => {
+    if (!rawStream) return;
+    isRecording ? stopRecording() : startRecording();
+  });
+
+  function pickMime() {
+    const list = ['video/webm;codecs=vp8,opus','video/webm;codecs=vp8','video/webm;codecs=vp9,opus','video/webm;codecs=vp9','video/webm'];
+    for (const m of list) { try { if (MediaRecorder.isTypeSupported(m)) return m; } catch(e) {} }
+    return '';
+  }
+
+  function startRecording() {
+    chunks = []; intentionalStop = false;
+    let recStream;
+    if (canvasStream && canvasStream.getVideoTracks().length > 0) {
+      recStream = new MediaStream([...canvasStream.getVideoTracks(), ...rawStream.getAudioTracks()]);
+    } else {
+      recStream = rawStream;
+    }
+    const mime = pickMime();
+    try { mediaRecorder = new MediaRecorder(recStream, mime ? { mimeType: mime } : {}); }
+    catch(e) { mediaRecorder = new MediaRecorder(recStream); }
+
+    mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    mediaRecorder.onerror = e => console.error('MediaRecorder error', e);
+    mediaRecorder.onstop  = () => { if (intentionalStop && chunks.length > 0) saveVideo(); };
+    mediaRecorder.start(2000);
+
+    isRecording = true;
+    btnRecord.classList.add('recording');
+    recStart = Date.now();
+    recTimer.classList.add('visible');
+    statusBar.className   = 'recording';
+    statusBar.textContent = '\u25cf RECORDING';
+    recInterval = setInterval(() => {
+      const s = Math.floor((Date.now() - recStart) / 1000);
+      recTimeEl.textContent = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+    }, 500);
+  }
+
+  function stopRecording() {
+    intentionalStop = true; isRecording = false;
+    mediaRecorder.stop();
+    btnRecord.classList.remove('recording');
+    recTimer.classList.remove('visible');
+    clearInterval(recInterval);
+    statusBar.className   = horizonLocked ? 'locked' : '';
+    statusBar.textContent = horizonLocked ? 'HORIZON LOCKED' : gyroActive ? 'GYRO: ACTIVE' : 'GYRO: STANDBY';
+  }
+
+  function saveVideo() {
+    const mime = (mediaRecorder && mediaRecorder.mimeType) || 'video/webm';
+    const ext  = mime.includes('mp4') ? 'mp4' : 'webm';
+    const blob = new Blob(chunks, { type: mime });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'horizon-lock-' + Date.now() + '.' + ext;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  btnStart.addEventListener('click', initCamera);
+})();
+</script>
+</body>
+</html>
