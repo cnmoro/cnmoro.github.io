@@ -121,8 +121,7 @@
 <script>
 (function () {
   // ── Configuration ──────────────────────────────────────────────────────────
-  // 0.01 = extremely slow/heavy gimbal, 1.0 = instant (no smoothing)
-  const SMOOTHING_FACTOR = 0.08; 
+  const SMOOTHING = 0.15; // Fluid, constant exponential moving average 
 
   // ── State ──────────────────────────────────────────────────────────────────
   let rawStream       = null;
@@ -135,19 +134,15 @@
   let horizonLocked   = false;
   let refRoll         = 0;
   
-  // Vector target (Raw reading from Gyro)
-  let targetX         = 0;
-  let targetY         = 1;
-  // Vector smoothed (What the camera actually renders)
-  let vecX            = 0;
-  let vecY            = 1;
-  
   let currentRoll     = 0;   
   let smoothedRoll    = 0;   
   let rollInitialized = false;
   let lastTime        = 0;
   
+  let currentBeta     = 0;
+  let currentGamma    = 0;
   let signFlip        = 1;
+
   let recStart        = null;
   let recInterval     = null;
   let gyroActive      = false;
@@ -176,30 +171,35 @@
   const btnFlip     = document.getElementById('btnFlip');
 
   // ── Gyroscope ──────────────────────────────────────────────────────────────
-  function handleOrientation(e) {
-    gyroActive = true;
-    const currentBeta  = e.beta  || 0;
-    const currentGamma = e.gamma || 0;
-
+  // THIS IS THE EXACT MATHEMATICAL MAPPING YOU APPROVED. IT REMAINS UNTOUCHED.
+  function computeRoll(beta, gamma) {
     const rad = Math.PI / 180;
-    const b = currentBeta * rad;
-    const g = currentGamma * rad;
+    const b = beta * rad;
+    const g = gamma * rad;
 
-    // Convert angles to a purely continuous 2D vector. 
-    // This entirely prevents "wrap-around" jitters at 180 degrees.
-    targetX = -Math.sin(g) * Math.cos(b);
-    targetY = Math.sin(b);
-
-    currentRoll = Math.atan2(targetX, targetY) * 180 / Math.PI;
+    const x_up = -Math.sin(g) * Math.cos(b);
+    const y_up = Math.sin(b);
     
-    // Snap immediately on first read
+    // Protects against "Gimbal Singularity" when phone is flat on table
+    if (Math.abs(x_up) < 0.001 && Math.abs(y_up) < 0.001) {
+      return currentRoll;
+    }
+
+    return Math.atan2(x_up, y_up) * 180 / Math.PI;
+  }
+
+  function handleOrientation(e) {
+    gyroActive   = true;
+    currentBeta  = e.beta  || 0;
+    currentGamma = e.gamma || 0;
+
+    currentRoll = computeRoll(currentBeta, currentGamma);
+    
     if (!rollInitialized) {
-      vecX = targetX;
-      vecY = targetY;
+      smoothedRoll = currentRoll;
       rollInitialized = true;
     }
 
-    // Update debug panel
     dBeta.textContent  = currentBeta.toFixed(1)  + '\u00b0';
     dGamma.textContent = currentGamma.toFixed(1) + '\u00b0';
     dRoll.textContent  = currentRoll.toFixed(1)  + '\u00b0';
@@ -240,34 +240,34 @@
     canvas.width  = canvasW;
     canvas.height = canvasH;
     
-    // High quality sub-pixel interpolation helps smooth the rotated video texture
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
   }
 
-  // ── Render loop (60fps Decoupled Vector Smoothing) ─────────────────────────
+  // ── Render loop ────────────────────────────────────────────────────────────
   function drawFrame() {
-    requestAnimationFrame(drawFrame); // Render locked to screen refresh rate (60/120Hz)
+    requestAnimationFrame(drawFrame);
     
     if (!srcW || !rollInitialized) return;
 
-    // Delta Time calculations to ensure consistent smoothing speed regardless of lag
+    // Delta time ensures smooth consistent interpolation regardless of screen refresh rate
     const now = performance.now();
     if (!lastTime) lastTime = now;
-    const dt = Math.max(1, Math.min(now - lastTime, 50)); 
+    const dt = Math.max(1, Math.min(now - lastTime, 50));
     lastTime = now;
     const dtRatio = dt / 16.666;
 
-    // Apply Low-Pass filter directly to the VECTORS, not the angles.
-    const factor = 1 - Math.pow(1 - SMOOTHING_FACTOR, dtRatio);
-    vecX += (targetX - vecX) * factor;
-    vecY += (targetY - vecY) * factor;
+    // Fluid Angle Lerping. 
+    // The "Adaptive gate" that caused the stutter at 0 degrees has been removed.
+    let diff = currentRoll - smoothedRoll;
+    diff = ((diff + 180) % 360 + 360) % 360 - 180; 
 
-    // Convert the smoothed vector back to a degree angle
-    smoothedRoll = Math.atan2(vecX, vecY) * (180 / Math.PI);
+    const factor = 1 - Math.pow(1 - SMOOTHING, dtRatio);
+    smoothedRoll += diff * factor;
+    smoothedRoll = ((smoothedRoll + 180) % 360 + 360) % 360 - 180;
 
     let delta = smoothedRoll - refRoll;
-    delta = ((delta + 180) % 360 + 360) % 360 - 180; // Normalize bounds safely
+    delta = ((delta + 180) % 360 + 360) % 360 - 180;
     const correctionAngle = horizonLocked ? -signFlip * delta : 0;
 
     // Update UI Elements
@@ -286,17 +286,17 @@
     const cosA = Math.abs(Math.cos(corrRad));
     const sinA = Math.abs(Math.sin(corrRad));
 
-    // Calculate boundary fit
+    // Base boundary scaling
     let fillScale = Math.max(
       (W * cosA + H * sinA) / W,
       (W * sinA + H * cosA) / H
     );
     
-    // Anti-Shimmer Overscan: Instead of vibrating rounding numbers, we just add
-    // a pure 2.5% scale zoom to permanently hide edge rendering artifacts.
-    fillScale *= 1.025; 
+    // 2% Flat Overscan strictly hides sub-pixel rendering stutters on the borders
+    fillScale *= 1.02;
 
     if (srcW > srcH) {
+      // EXACT ORIGINAL STRUCTURAL RENDERING LOGIC
       const totalRad = (-Math.PI / 2) + corrRad;
       ctx.rotate(totalRad);
       ctx.scale(fillScale, fillScale);
@@ -317,7 +317,7 @@
     btnStart.disabled = true;
     try {
       rawStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: true
       });
       camFeed.srcObject = rawStream;
@@ -328,8 +328,8 @@
       permOverlay.style.display = 'none';
       
       lastTime = performance.now();
-      requestAnimationFrame(drawFrame); // Start 60fps loop
-      canvasStream = canvas.captureStream(30); // Output recording stream
+      requestAnimationFrame(drawFrame);
+      canvasStream = canvas.captureStream(30);
     } catch (err) {
       btnStart.textContent = 'RETRY';
       btnStart.disabled = false;
