@@ -120,9 +120,6 @@
 </div>
 <script>
 (function () {
-  // ── Configuration ──────────────────────────────────────────────────────────
-  const SMOOTHING = 0.15; // Fluid, constant exponential moving average 
-
   // ── State ──────────────────────────────────────────────────────────────────
   let rawStream       = null;
   let canvasStream    = null;
@@ -171,7 +168,7 @@
   const btnFlip     = document.getElementById('btnFlip');
 
   // ── Gyroscope ──────────────────────────────────────────────────────────────
-  // THIS IS THE EXACT MATHEMATICAL MAPPING YOU APPROVED. IT REMAINS UNTOUCHED.
+  // PERFECTED MATH PRESERVED
   function computeRoll(beta, gamma) {
     const rad = Math.PI / 180;
     const b = beta * rad;
@@ -250,20 +247,27 @@
     
     if (!srcW || !rollInitialized) return;
 
-    // Delta time ensures smooth consistent interpolation regardless of screen refresh rate
+    // Constrain delta time to strictly prevent physics/math stutter bounds
     const now = performance.now();
     if (!lastTime) lastTime = now;
-    const dt = Math.max(1, Math.min(now - lastTime, 50));
+    let dt = now - lastTime;
+    dt = Math.max(8, Math.min(dt, 33)); // cap to valid screen refresh bands
     lastTime = now;
     const dtRatio = dt / 16.666;
 
-    // Fluid Angle Lerping. 
-    // The "Adaptive gate" that caused the stutter at 0 degrees has been removed.
+    // Angle difference
     let diff = currentRoll - smoothedRoll;
     diff = ((diff + 180) % 360 + 360) % 360 - 180; 
 
-    const factor = 1 - Math.pow(1 - SMOOTHING, dtRatio);
-    smoothedRoll += diff * factor;
+    // Dynamic Smoothing: 
+    // Small diff = Base 0.10 (Extremely heavily smoothed to block hand jitter)
+    // Large diff = Scales up linearly to stop the trailing/wobble effect
+    // This removes the "slide" when the physical camera stops moving
+    let dynamicFactor = 0.10 + (Math.abs(diff) * 0.02);
+    dynamicFactor = Math.min(0.85, dynamicFactor); // cap at 0.85 to avoid hard snapping
+
+    const finalFactor = 1 - Math.pow(1 - dynamicFactor, dtRatio);
+    smoothedRoll += diff * finalFactor;
     smoothedRoll = ((smoothedRoll + 180) % 360 + 360) % 360 - 180;
 
     let delta = smoothedRoll - refRoll;
@@ -286,17 +290,15 @@
     const cosA = Math.abs(Math.cos(corrRad));
     const sinA = Math.abs(Math.sin(corrRad));
 
-    // Base boundary scaling
     let fillScale = Math.max(
       (W * cosA + H * sinA) / W,
       (W * sinA + H * cosA) / H
     );
     
-    // 2% Flat Overscan strictly hides sub-pixel rendering stutters on the borders
+    // 2% Flat Overscan hides sub-pixel edge boundaries 
     fillScale *= 1.02;
 
     if (srcW > srcH) {
-      // EXACT ORIGINAL STRUCTURAL RENDERING LOGIC
       const totalRad = (-Math.PI / 2) + corrRad;
       ctx.rotate(totalRad);
       ctx.scale(fillScale, fillScale);
