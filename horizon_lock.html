@@ -11,13 +11,12 @@
   body { background:#000; font-family:'Share Tech Mono',monospace; height:100dvh; overflow:hidden; user-select:none; color:#e8e8e8; }
   #viewport { position:relative; width:100%; height:100dvh; overflow:hidden; background:#000; }
   #camFeed { display:none; }
-  #previewCanvas { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; background:#000; }
+  #previewCanvas { position:absolute; top:0; left:0; width:100%; height:100%; background:#000; display:block; }
 
   #ui { position:absolute; inset:0; pointer-events:none; display:flex; flex-direction:column; justify-content:space-between; padding:24px 20px 36px; z-index:10; }
   #header { display:flex; justify-content:space-between; align-items:flex-start; }
   #title { font-family:'Bebas Neue',sans-serif; font-size:2.2rem; letter-spacing:0.1em; color:var(--accent); text-shadow:0 0 20px rgba(0,255,170,0.5); line-height:1; }
   #title span { display:block; font-size:0.55rem; letter-spacing:0.3em; color:var(--dim); font-family:'Share Tech Mono',monospace; margin-top:2px; }
-
   #debug { text-align:right; font-size:0.65rem; color:var(--dim); line-height:2; letter-spacing:0.05em; }
   #debug .val { color:var(--accent); }
   #debug .corr { color:var(--warn); }
@@ -84,24 +83,25 @@
   </div>
   <div id="tiltIndicator">
     <div id="tiltBar"><div id="tiltCenter"></div><div id="tiltFill"></div></div>
-    <div id="tiltValue">TILT: 0.0&#176;</div>
+    <div id="tiltValue">TILT: 0.0°</div>
   </div>
   <div id="scanlines"></div>
   <div id="vignette"></div>
 
   <div id="ui">
     <div id="header">
-      <div><div id="title">HORIZON<br>LOCK<span>STABILIZATION SYSTEM v1.0</span></div></div>
+      <div><div id="title">HORIZON<br>LOCK<span>STABILIZATION SYSTEM v1.2</span></div></div>
       <div id="debug">
-        &beta; <span class="val" id="dBeta">--</span><br>
-        &gamma; <span class="val" id="dGamma">--</span><br>
+        β <span class="val" id="dBeta">--</span><br>
+        γ <span class="val" id="dGamma">--</span><br>
         ROLL <span class="val" id="dRoll">--</span><br>
+        PITCH <span class="val" id="dPitch">--</span><br>
         REF <span class="val" id="dRef">--</span><br>
         CORR <span class="corr" id="dCorr">--</span>
       </div>
     </div>
     <div id="controls">
-      <div id="recTimer">&#9679; REC <span id="recTime">00:00</span></div>
+      <div id="recTimer">● REC <span id="recTime">00:00</span></div>
       <div id="statusBar">GYRO: STANDBY</div>
       <div id="btnRow">
         <button class="btn" id="btnHorizon">HOLD HORIZON</button>
@@ -113,11 +113,12 @@
 
   <div id="permOverlay">
     <h1>HORIZON<br>LOCK</h1>
-    <p>GYROSCOPE-STABILIZED CAMERA<br><br>REQUIRES ACCESS TO:<br>CAMERA &middot; GYROSCOPE &middot; MICROPHONE</p>
+    <p>GYROSCOPE-STABILIZED CAMERA<br><br>REQUIRES ACCESS TO:<br>CAMERA · GYROSCOPE · MICROPHONE</p>
     <button id="btnStart">INITIALIZE</button>
     <div id="errorMsg"></div>
   </div>
 </div>
+
 <script>
 (function () {
   // ── State ──────────────────────────────────────────────────────────────────
@@ -129,20 +130,30 @@
   let intentionalStop = false;
 
   let horizonLocked   = false;
-  let refRoll         = 0;
-  
-  let currentRoll     = 0;   
-  let smoothedRoll    = 0;   
-  let rollInitialized = false;
-  let lastTime        = 0;
-  
-  let currentBeta     = 0;
-  let currentGamma    = 0;
   let signFlip        = 1;
+  
+  // Sensor Inputs (Raw)
+  let sensorRoll      = 0;
+  let sensorPitch     = 0;
+  
+  // Render State (The "Chasers")
+  let renderRoll      = 0;
+  let renderPitch     = 0;
+  
+  // Reference State
+  let refRoll         = 0;
+  let refPitch        = 0;
 
-  let recStart        = null;
-  let recInterval     = null;
   let gyroActive      = false;
+  let systemReady     = false;
+  let lastTime        = 0;
+  let lastScreenAngle = null;
+
+  // ── NEW: Smoothing Configuration ───────────────────────────────────────────
+  // Fixed time constant for consistent smoothing regardless of frame rate
+  const SMOOTH_TIME_ROLL  = 0.18;  // Seconds (lower = faster response)
+  const SMOOTH_TIME_PITCH = 0.22;  // Slightly slower for pitch to reduce jitter
+  const PITCH_MAX_CORRECTION = 60; // Increased from 45° to reduce lag
 
   // ── DOM ────────────────────────────────────────────────────────────────────
   const camFeed     = document.getElementById('camFeed');
@@ -160,6 +171,7 @@
   const dBeta       = document.getElementById('dBeta');
   const dGamma      = document.getElementById('dGamma');
   const dRoll       = document.getElementById('dRoll');
+  const dPitch      = document.getElementById('dPitch');
   const dRef        = document.getElementById('dRef');
   const dCorr       = document.getElementById('dCorr');
   const btnStart    = document.getElementById('btnStart');
@@ -167,40 +179,91 @@
   const btnRecord   = document.getElementById('btnRecord');
   const btnFlip     = document.getElementById('btnFlip');
 
-  // ── Gyroscope ──────────────────────────────────────────────────────────────
-  // PERFECTED MATH PRESERVED
-  function computeRoll(beta, gamma) {
+  // ── Math Utilities ───────────────────────────────────────────────────────────
+  
+  function normalizeAngle(angle) {
+    return ((angle + 180) % 360 + 360) % 360 - 180;
+  }
+
+  function lerpAngle(from, to, t) {
+    let diff = normalizeAngle(to - from);
+    return from + diff * t;
+  }
+
+  function lerp(from, to, t) {
+    return from + (to - from) * t;
+  }
+
+  function getScreenAngle() {
+    let angle = 0;
+    if (screen && screen.orientation && screen.orientation.angle !== undefined) {
+      angle = screen.orientation.angle;
+    } else if (typeof window.orientation !== 'undefined') {
+      angle = window.orientation;
+    }
+    return ((angle + 180) % 360 + 360) % 360 - 180;
+  }
+
+  // ── FIXED: Proper Pitch & Roll Calculation ─────────────────────────────────
+  function computeOrientation(beta, gamma, screenAngle) {
     const rad = Math.PI / 180;
     const b = beta * rad;
     const g = gamma * rad;
+    const sa = screenAngle * rad;
 
-    const x_up = -Math.sin(g) * Math.cos(b);
-    const y_up = Math.sin(b);
+    // Calculate device orientation in world coordinates
+    // This properly accounts for screen rotation
+    const sinSa = Math.sin(sa);
+    const cosSa = Math.cos(sa);
+    const sinB = Math.sin(b);
+    const cosB = Math.cos(b);
+    const sinG = Math.sin(g);
+    const cosG = Math.cos(g);
+
+    // World-space up vector components
+    const x_up = -sinG * cosB;
+    const y_up = sinB;
+    const z_up = cosG * cosB;
+
+    // Rotate by screen angle to get screen-relative coordinates
+    const x_screen = x_up * cosSa - y_up * sinSa;
+    const y_screen = x_up * sinSa + y_up * cosSa;
+
+    // Calculate roll (rotation around Z-axis of screen)
+    let roll = Math.atan2(x_screen, y_screen) * 180 / Math.PI;
     
-    // Protects against "Gimbal Singularity" when phone is flat on table
-    if (Math.abs(x_up) < 0.001 && Math.abs(y_up) < 0.001) {
-      return currentRoll;
-    }
+    // Calculate pitch (tilt forward/backward relative to horizon)
+    // Using the Z component for more accurate pitch at extreme angles
+    let pitch = Math.asin(y_screen) * 180 / Math.PI;
+    
+    // Alternative pitch calculation that works better at extreme angles
+    const pitchAlt = Math.atan2(y_screen, Math.sqrt(x_screen * x_screen + z_up * z_up)) * 180 / Math.PI;
+    
+    // Blend between the two for smoother behavior across all angles
+    const blendFactor = Math.abs(beta - 90) / 90; // 0 at 90°, 1 at 0° or 180°
+    pitch = lerp(pitchAlt, pitch, blendFactor);
 
-    return Math.atan2(x_up, y_up) * 180 / Math.PI;
+    return { roll: normalizeAngle(roll), pitch: pitch };
   }
 
+  // ── Gyroscope Handling ───────────────────────────────────────────────────────
   function handleOrientation(e) {
-    gyroActive   = true;
-    currentBeta  = e.beta  || 0;
-    currentGamma = e.gamma || 0;
+    gyroActive = true;
+    let beta = e.beta || 0;
+    let gamma = e.gamma || 0;
+    let screenAngle = getScreenAngle();
 
-    currentRoll = computeRoll(currentBeta, currentGamma);
-    
-    if (!rollInitialized) {
-      smoothedRoll = currentRoll;
-      rollInitialized = true;
-    }
+    // Use proper orientation calculation
+    const orientation = computeOrientation(beta, gamma, screenAngle);
+    sensorRoll = orientation.roll;
+    sensorPitch = orientation.pitch;
 
-    dBeta.textContent  = currentBeta.toFixed(1)  + '\u00b0';
-    dGamma.textContent = currentGamma.toFixed(1) + '\u00b0';
-    dRoll.textContent  = currentRoll.toFixed(1)  + '\u00b0';
-    dRef.textContent   = refRoll.toFixed(1)      + '\u00b0';
+    // Update Debug UI
+    dBeta.textContent   = beta.toFixed(1)   + '°';
+    dGamma.textContent  = gamma.toFixed(1)  + '°';
+    dRoll.textContent   = sensorRoll.toFixed(1)   + '°';
+    dPitch.textContent  = sensorPitch.toFixed(1)  + '°';
+    dRef.textContent    = refRoll.toFixed(1)      + '°';
 
     if (!statusBar.classList.contains('recording') && !statusBar.classList.contains('locked'))
       statusBar.textContent = 'GYRO: ACTIVE';
@@ -211,7 +274,7 @@
       try {
         if (await DeviceOrientationEvent.requestPermission() === 'granted')
           window.addEventListener('deviceorientation', handleOrientation);
-      } catch(e) {}
+      } catch(e) { console.error(e); }
     } else {
       window.addEventListener('deviceorientation', handleOrientation);
     }
@@ -224,16 +287,9 @@
   function initCanvasSize() {
     srcW = camFeed.videoWidth;
     srcH = camFeed.videoHeight;
-    const maxLong = 1280;
-    const scale   = Math.min(1, maxLong / Math.max(srcW, srcH));
-
-    if (srcW > srcH) {
-      canvasW = Math.round(srcH * scale);
-      canvasH = Math.round(srcW * scale);
-    } else {
-      canvasW = Math.round(srcW * scale);
-      canvasH = Math.round(srcH * scale);
-    }
+    canvasW = window.innerWidth;
+    canvasH = window.innerHeight;
+    
     canvas.width  = canvasW;
     canvas.height = canvasH;
     
@@ -241,82 +297,118 @@
     ctx.imageSmoothingQuality = 'high';
   }
 
+  let orientationTimer;
+  window.addEventListener('orientationchange', () => {
+    if (isRecording) btnRecord.click(); 
+    if (horizonLocked) btnHorizon.click(); 
+    clearTimeout(orientationTimer);
+    orientationTimer = setTimeout(() => { initCamera(true); }, 600); 
+  });
+  window.addEventListener('resize', () => { if(srcW) initCanvasSize(); });
+
   // ── Render loop ────────────────────────────────────────────────────────────
-  function drawFrame() {
+  function drawFrame(timestamp) {
     requestAnimationFrame(drawFrame);
+    if (!srcW) return;
+
+    // Calculate Delta Time
+    if (!lastTime) lastTime = timestamp;
+    let dt = (timestamp - lastTime) / 1000.0;
+    lastTime = timestamp;
     
-    if (!srcW || !rollInitialized) return;
+    // Guard against large time jumps
+    if (dt > 0.1) dt = 0.016;
+    if (dt < 0.001) dt = 0.016; // Minimum dt for stability
 
-    // Constrain delta time to strictly prevent physics/math stutter bounds
-    const now = performance.now();
-    if (!lastTime) lastTime = now;
-    let dt = now - lastTime;
-    dt = Math.max(8, Math.min(dt, 33)); // cap to valid screen refresh bands
-    lastTime = now;
-    const dtRatio = dt / 16.666;
+    // ── 1. Handle Screen Rotation Offset ─────────────────────────
+    const currentScreenAngle = getScreenAngle();
+    if (lastScreenAngle === null) lastScreenAngle = currentScreenAngle;
+    
+    if (currentScreenAngle !== lastScreenAngle) {
+      let angleDiff = currentScreenAngle - lastScreenAngle;
+      angleDiff = normalizeAngle(angleDiff);
+      
+      renderRoll -= angleDiff;
+      refRoll -= angleDiff;
+      
+      lastScreenAngle = currentScreenAngle;
+    }
 
-    // Angle difference
-    let diff = currentRoll - smoothedRoll;
-    diff = ((diff + 180) % 360 + 360) % 360 - 180; 
+    // ── 2. FIXED: Time-Based Smoothing (Frame Rate Independent) ──────────────
+    // Using fixed time constants instead of variable responsiveness
+    const tRoll  = 1.0 - Math.exp(-dt / SMOOTH_TIME_ROLL);
+    const tPitch = 1.0 - Math.exp(-dt / SMOOTH_TIME_PITCH);
+    
+    renderRoll  = lerpAngle(renderRoll, sensorRoll, tRoll);
+    renderPitch = lerp(renderPitch, sensorPitch, tPitch);
 
-    // Dynamic Smoothing: 
-    // Small diff = Base 0.10 (Extremely heavily smoothed to block hand jitter)
-    // Large diff = Scales up linearly to stop the trailing/wobble effect
-    // This removes the "slide" when the physical camera stops moving
-    let dynamicFactor = 0.10 + (Math.abs(diff) * 0.02);
-    dynamicFactor = Math.min(0.85, dynamicFactor); // cap at 0.85 to avoid hard snapping
+    // ── 3. CALCULATE CORRECTION ───────────────────────────────────
+    let deltaRoll = normalizeAngle(renderRoll - refRoll);
+    let correctionAngle = horizonLocked ? -signFlip * deltaRoll : 0;
+    
+    let deltaPitch = renderPitch - refPitch;
+    let pitchCorrection = horizonLocked ? deltaPitch : 0;
+    
+    // FIXED: Increased limit and removed hard clamp for smoother behavior
+    pitchCorrection = Math.max(-PITCH_MAX_CORRECTION, Math.min(PITCH_MAX_CORRECTION, pitchCorrection));
 
-    const finalFactor = 1 - Math.pow(1 - dynamicFactor, dtRatio);
-    smoothedRoll += diff * finalFactor;
-    smoothedRoll = ((smoothedRoll + 180) % 360 + 360) % 360 - 180;
-
-    let delta = smoothedRoll - refRoll;
-    delta = ((delta + 180) % 360 + 360) % 360 - 180;
-    const correctionAngle = horizonLocked ? -signFlip * delta : 0;
-
-    // Update UI Elements
-    dCorr.textContent = correctionAngle.toFixed(1) + '\u00b0';
+    // Update UI
+    dCorr.textContent = correctionAngle.toFixed(1) + '°';
     const pct = Math.max(-1, Math.min(1, correctionAngle / 90));
     tiltFill.style.left = 'calc(50% + ' + (pct * 90) + 'px)';
-    tiltValue.textContent = 'CORR: ' + correctionAngle.toFixed(1) + '\u00b0';
+    tiltValue.textContent = `R: ${correctionAngle.toFixed(1)}° | P: ${pitchCorrection.toFixed(1)}°`;
 
+    // ── 4. DRAW ───────────────────────────────────────────────────
     const W = canvasW;
     const H = canvasH;
     ctx.clearRect(0, 0, W, H);
     ctx.save();
+    
     ctx.translate(W / 2, H / 2);
+
+    const srcDiag = Math.sqrt(srcW * srcW + srcH * srcH);
+    const fovRad = 55 * (Math.PI / 180); 
+    const srcFocalLen = (srcDiag / 2) / Math.tan(fovRad / 2);
+
+    const vidScale = Math.max(W / srcW, H / srcH);
+    const drawW = srcW * vidScale;
+    const drawH = srcH * vidScale;
+
+    const canvasFocalLen = srcFocalLen * vidScale;
+    
+    let ty = -canvasFocalLen * Math.tan(pitchCorrection * Math.PI / 180);
 
     const corrRad = correctionAngle * Math.PI / 180;
     const cosA = Math.abs(Math.cos(corrRad));
     const sinA = Math.abs(Math.sin(corrRad));
 
-    let fillScale = Math.max(
-      (W * cosA + H * sinA) / W,
-      (W * sinA + H * cosA) / H
-    );
+    let baseReqW = W * cosA + H * sinA;
+    let baseReqH = W * sinA + H * cosA;
+
+    let scaleX = baseReqW / drawW;
+    let scaleY = (baseReqH + 2 * Math.abs(ty)) / drawH;
     
-    // 2% Flat Overscan hides sub-pixel edge boundaries 
-    fillScale *= 1.02;
+    let finalScale = Math.max(scaleX, scaleY);
+    finalScale *= 1.02;
+    finalScale = Math.min(finalScale, 3.5);
 
-    if (srcW > srcH) {
-      const totalRad = (-Math.PI / 2) + corrRad;
-      ctx.rotate(totalRad);
-      ctx.scale(fillScale, fillScale);
-      const s = W / srcH;
-      ctx.drawImage(camFeed, -srcW * s / 2, -srcH * s / 2, srcW * s, srcH * s);
-    } else {
-      ctx.rotate(corrRad);
-      ctx.scale(fillScale, fillScale);
-      ctx.drawImage(camFeed, -W / 2, -H / 2, W, H);
-    }
-
+    ctx.rotate(corrRad);
+    ctx.translate(0, ty); 
+    ctx.scale(finalScale, finalScale);
+    
+    ctx.drawImage(camFeed, -drawW / 2, -drawH / 2, drawW, drawH);
     ctx.restore();
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────
-  async function initCamera() {
-    btnStart.textContent = 'LOADING...';
-    btnStart.disabled = true;
+  async function initCamera(isReset = false) {
+    if (!isReset) {
+      btnStart.textContent = 'LOADING...';
+      btnStart.disabled = true;
+    }
+    
+    if (rawStream) rawStream.getTracks().forEach(t => t.stop());
+
     try {
       rawStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
@@ -326,29 +418,41 @@
       await new Promise(r => { camFeed.onloadedmetadata = r; });
       await camFeed.play();
       initCanvasSize();
-      await requestGyro();
-      permOverlay.style.display = 'none';
       
-      lastTime = performance.now();
-      requestAnimationFrame(drawFrame);
-      canvasStream = canvas.captureStream(30);
+      if (!isReset) {
+        await requestGyro();
+        permOverlay.style.display = 'none';
+        
+        renderRoll = sensorRoll;
+        renderPitch = sensorPitch;
+        lastScreenAngle = getScreenAngle();
+        
+        lastTime = 0;
+        systemReady = true;
+        requestAnimationFrame(drawFrame);
+        canvasStream = canvas.captureStream(30);
+      }
     } catch (err) {
-      btnStart.textContent = 'RETRY';
-      btnStart.disabled = false;
-      let msg = err.message || 'PERMISSION DENIED';
-      if (err.name === 'NotAllowedError')  msg = 'CAMERA PERMISSION DENIED';
-      if (err.name === 'NotFoundError')    msg = 'NO CAMERA FOUND';
-      if (err.name === 'NotReadableError') msg = 'CAMERA IN USE BY ANOTHER APP';
-      errorMsg.style.display = 'block';
-      errorMsg.textContent = '\u26a0 ' + msg;
+      if (!isReset) {
+        btnStart.textContent = 'RETRY';
+        btnStart.disabled = false;
+        let msg = err.message || 'PERMISSION DENIED';
+        if (err.name === 'NotAllowedError')  msg = 'CAMERA PERMISSION DENIED';
+        if (err.name === 'NotFoundError')    msg = 'NO CAMERA FOUND';
+        if (err.name === 'NotReadableError') msg = 'CAMERA IN USE BY ANOTHER APP';
+        errorMsg.style.display = 'block';
+        errorMsg.textContent = '⚠ ' + msg;
+      }
     }
   }
 
-  // ── Horizon lock ───────────────────────────────────────────────────────────
+  // ── Controls ───────────────────────────────────────────────────────────────
   btnHorizon.addEventListener('click', () => {
     horizonLocked = !horizonLocked;
     if (horizonLocked) {
-      refRoll = smoothedRoll;
+      refRoll = renderRoll;
+      refPitch = renderPitch;
+      
       btnHorizon.classList.add('active');
       horizonLine.classList.add('active');
       tiltInd.classList.add('visible');
@@ -363,14 +467,15 @@
     }
   });
 
-  // ── Flip ───────────────────────────────────────────────────────────────────
   btnFlip.addEventListener('click', () => {
     signFlip *= -1;
     btnFlip.classList.toggle('active', signFlip === -1);
-    if (horizonLocked) refRoll = smoothedRoll;
+    if (horizonLocked) {
+      refRoll = renderRoll;
+      refPitch = renderPitch;
+    }
   });
 
-  // ── Recording ──────────────────────────────────────────────────────────────
   btnRecord.addEventListener('click', () => {
     if (!rawStream) return;
     isRecording ? stopRecording() : startRecording();
@@ -404,7 +509,7 @@
     recStart = Date.now();
     recTimer.classList.add('visible');
     statusBar.className   = 'recording';
-    statusBar.textContent = '\u25cf RECORDING';
+    statusBar.textContent = '● RECORDING';
     recInterval = setInterval(() => {
       const s = Math.floor((Date.now() - recStart) / 1000);
       recTimeEl.textContent = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
@@ -421,6 +526,9 @@
     statusBar.textContent = horizonLocked ? 'HORIZON LOCKED' : gyroActive ? 'GYRO: ACTIVE' : 'GYRO: STANDBY';
   }
 
+  let recStart = null;
+  let recInterval = null;
+  
   function saveVideo() {
     const mime = (mediaRecorder && mediaRecorder.mimeType) || 'video/webm';
     const ext  = mime.includes('mp4') ? 'mp4' : 'webm';
@@ -432,7 +540,7 @@
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
-  btnStart.addEventListener('click', initCamera);
+  btnStart.addEventListener('click', () => initCamera(false));
 })();
 </script>
 </body>
