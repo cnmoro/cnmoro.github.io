@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Live Retinex Camera</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #controls {
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 10;
+        }
+        select {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background: #222;
+            color: white;
+        }
+        #canvas-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background: #000;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        #fps {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: lime;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="fps">FPS: 0</div>
+
+    <div id="canvas-container">
+        <video id="video" autoplay playsinline style="display: none;"></video>
+        <canvas id="outputCanvas"></canvas>
+    </div>
+
+    <div id="controls">
+        <select id="cameraSelect"></select>
+        <select id="filterSelect">
+            <option value="original">Original</option>
+            <option value="ssr">Single-Scale Retinex (Grayscale)</option>
+            <option value="msr">Multi-Scale Retinex (Grayscale)</option>
+            <option value="msr_color">MSR Color (Lightness)</option>
+        </select>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('outputCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const cameraSelect = document.getElementById('cameraSelect');
+        const filterSelect = document.getElementById('filterSelect');
+        const fpsDisplay = document.getElementById('fps');
+
+        let currentStream = null;
+        let lastTime = performance.now();
+        let frameCount = 0;
+
+        // --- Camera Setup ---
+        async function getCameras() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            
+            cameraSelect.innerHTML = '';
+            videoDevices.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Camera ${index + 1}`;
+                cameraSelect.appendChild(option);
+            });
+
+            if (videoDevices.length > 0) {
+                startCamera(videoDevices[0].deviceId);
+            }
+        }
+
+        async function startCamera(deviceId) {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            const constraints = {
+                video: {
+                    deviceId: deviceId ? { exact: deviceId } : undefined,
+                    width: { ideal: 640 }, // Kept small for performance
+                    height: { ideal: 480 }
+                }
+            };
+
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = currentStream;
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    requestAnimationFrame(processFrame);
+                };
+            } catch (err) {
+                console.error("Error accessing camera:", err);
+                alert("Could not access camera. Please ensure permissions are granted.");
+            }
+        }
+
+        cameraSelect.addEventListener('change', (e) => startCamera(e.target.value));
+
+        // --- Image Processing Helpers ---
+
+        // Fast Box Blur approximation for the "Illumination" layer
+        function fastBoxBlur(data, width, height, radius) {
+            const size = width * height;
+            const result = new Float32Array(size);
+            // Very simplified horizontal + vertical pass approximation
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    let val = 0, count = 0;
+                    for (let dy = -radius; dy <= radius; dy+=2) { // Step by 2 for speed
+                        for (let dx = -radius; dx <= radius; dx+=2) {
+                            let nx = Math.min(Math.max(x + dx, 0), width - 1);
+                            let ny = Math.min(Math.max(y + dy, 0), height - 1);
+                            val += data[ny * width + nx];
+                            count++;
+                        }
+                    }
+                    result[y * width + x] = val / count;
+                }
+            }
+            return result;
+        }
+
+        function applyRetinex(luma, width, height, scales) {
+            const size = width * height;
+            const retinex = new Float32Array(size);
+            const weight = 1.0 / scales.length;
+
+            scales.forEach(scale => {
+                const blur = fastBoxBlur(luma, width, height, scale);
+                for (let i = 0; i < size; i++) {
+                    // log10(I + 1) - log10(G*I + 1)
+                    let logI = Math.log10(luma[i] + 1);
+                    let logBlur = Math.log10(blur[i] + 1);
+                    retinex[i] += weight * (logI - logBlur);
+                }
+            });
+
+            // Normalize
+            let min = Infinity, max = -Infinity;
+            for (let i = 0; i < size; i++) {
+                if (retinex[i] < min) min = retinex[i];
+                if (retinex[i] > max) max = retinex[i];
+            }
+            
+            const range = max - min || 1;
+            for (let i = 0; i < size; i++) {
+                retinex[i] = ((retinex[i] - min) / range) * 255;
+            }
+            return retinex;
+        }
+
+        // --- Processing Loop ---
+        function processFrame() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const filter = filterSelect.value;
+
+                if (filter !== 'original') {
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    const size = width * height;
+
+                    if (filter === 'ssr' || filter === 'msr') {
+                        // Extract Grayscale
+                        const luma = new Float32Array(size);
+                        for (let i = 0; i < size; i++) {
+                            luma[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
+                        }
+
+                        const scales = filter === 'ssr' ? [5] : [2, 6, 12]; // Small scales for JS speed
+                        const processedLuma = applyRetinex(luma, width, height, scales);
+
+                        for (let i = 0; i < size; i++) {
+                            let val = processedLuma[i];
+                            data[i*4] = val;     // R
+                            data[i*4+1] = val;   // G
+                            data[i*4+2] = val;   // B
+                        }
+                    } 
+                    else if (filter === 'msr_color') {
+                        // Simplified Color MSR: Apply to Luma, reapply color ratios
+                        const luma = new Float32Array(size);
+                        for (let i = 0; i < size; i++) {
+                            luma[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
+                        }
+
+                        const scales = [2, 6, 12];
+                        const processedLuma = applyRetinex(luma, width, height, scales);
+
+                        for (let i = 0; i < size; i++) {
+                            let oldLuma = luma[i] || 1;
+                            let newLuma = processedLuma[i];
+                            let ratio = newLuma / oldLuma;
+
+                            data[i*4] = Math.min(255, data[i*4] * ratio);
+                            data[i*4+1] = Math.min(255, data[i*4+1] * ratio);
+                            data[i*4+2] = Math.min(255, data[i*4+2] * ratio);
+                        }
+                    }
+                    ctx.putImageData(imageData, 0, 0);
+                }
+
+                // FPS Calculation
+                frameCount++;
+                const now = performance.now();
+                if (now - lastTime >= 1000) {
+                    fpsDisplay.innerText = `FPS: ${frameCount}`;
+                    frameCount = 0;
+                    lastTime = now;
+                }
+            }
+            requestAnimationFrame(processFrame);
+        }
+
+        // Initialize
+        navigator.mediaDevices.getUserMedia({ video: true }).then(() => {
+            getCameras();
+        }).catch(err => alert("Camera permission required."));
+
+    </script>
+</body>
+</html>
