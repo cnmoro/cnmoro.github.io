@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KATANA HERO</title>
+  <script type="module" crossorigin src="/assets/index-w4-PUCME.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-noCs0cGj.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div id="crosshair"></div>
+
+    <div id="hud-top">
+      <div id="fps" class="hidden">FPS 60</div>
+      <div id="timer">00:00.0</div>
+      <div id="enemies"><span id="enemy-count">0</span> INIMIGOS</div>
+    </div>
+
+    <div id="hud-bottom">
+      <div id="energy-wrap">
+        <div id="energy-label">FOCO</div>
+        <div id="energy-bar"><div id="energy-fill"></div></div>
+      </div>
+      <div id="dash-pip"></div>
+    </div>
+
+    <div id="slowmo-vignette"></div>
+    <div id="death-flash"></div>
+
+    <div id="banner" class="hidden">
+      <div id="banner-title">SETOR 01</div>
+      <div id="banner-sub"></div>
+    </div>
+
+    <div id="start-screen">
+      <div class="start-inner">
+        <h1>KATANA<span>//</span>HERO</h1>
+        <p class="tagline">um corte. uma vida. velocidade absoluta.</p>
+        <div class="controls">
+          <div><b>WASD</b> mover</div>
+          <div><b>ESPAÇO</b> pulo / pulo duplo</div>
+          <div><b>SHIFT</b> dash</div>
+          <div><b>C</b> slide</div>
+          <div><b>Q</b> câmera lenta (foco)</div>
+          <div><b>BOTÃO ESQ.</b> katana</div>
+          <div><b>BOTÃO DIR.</b> defletir projéteis</div>
+          <div><b>R</b> reiniciar setor</div>
+        </div>
+        <p class="click-hint">CLIQUE PARA COMEÇAR</p>
+      </div>
+    </div>
+
+    <div id="pause-screen" class="hidden">
+      <div class="start-inner">
+        <h1>PAUSADO</h1>
+        <p class="click-hint">CLIQUE PARA CONTINUAR</p>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
