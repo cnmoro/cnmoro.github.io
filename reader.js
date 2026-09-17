@@ -888,8 +888,26 @@ function cursorWorldFit(base) {
   return { x: base.x + pointer.x * halfW, z: -pointer.y * halfH };
 }
 
+function viewWidthPx() { return canvas.clientWidth || window.innerWidth; }
+function viewHeightPx() { return canvas.clientHeight || window.innerHeight; }
+
 function worldPerPixel() {
-  return (2 * view.dist * halfTan()) / window.innerHeight;
+  return (2 * view.dist * halfTan()) / viewHeightPx();
+}
+
+function screenNorm(clientX, clientY) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    nx: ((clientX - r.left) / (r.width || 1)) * 2 - 1,
+    ny: -((clientY - r.top) / (r.height || 1)) * 2 + 1,
+  };
+}
+
+function worldUnder(clientX, clientY, cx, cz, dist) {
+  const halfH = dist * halfTan();
+  const halfW = halfH * (camera.aspect || 1);
+  const { nx, ny } = screenNorm(clientX, clientY);
+  return { x: cx + nx * halfW, z: cz - ny * halfH, nx, ny };
 }
 
 function updateViewTarget() {
@@ -911,7 +929,7 @@ function updateViewTarget() {
 }
 
 function fitCamera() {
-  const w = window.innerWidth, h = window.innerHeight;
+  const w = viewWidthPx(), h = viewHeightPx();
   renderer.setSize(w, h, false);
   const aspect = w / h;
   camera.aspect = aspect;
@@ -943,6 +961,8 @@ function onResize() {
     zoomScale = 1;
     viewReady = false;
     zoomBtn.classList.remove('on');
+    focus.x = CFG.pageW * 0.5;
+    focus.z = 0;
     if (pageSource) buildBook(pageSource.count);
   }
   fitCamera();
@@ -961,17 +981,17 @@ function applyView(dt) {
 const zoomBtn = document.getElementById('zoom');
 
 function toggleZoom() {
-  zoomed = !zoomed;
   if (zoomed) {
-    zoomScale = 1 / zoomLevel;
-    const base = baseFraming();
-    const w = singlePage ? { x: base.x, z: 0 } : cursorWorldFit(base);
-    focus.x = w.x;
-    focus.z = w.z;
-  } else {
-    zoomScale = 1;
+    resetView();
+    return;
   }
-  zoomBtn.classList.toggle('on', zoomed);
+  zoomed = true;
+  zoomScale = 1 / zoomLevel;
+  const base = baseFraming();
+  const w = singlePage ? { x: base.x, z: 0 } : cursorWorldFit(base);
+  focus.x = w.x;
+  focus.z = w.z;
+  zoomBtn.classList.add('on');
   invalidate();
 }
 zoomBtn.addEventListener('click', toggleZoom);
@@ -1010,8 +1030,9 @@ const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const planeHit = new THREE.Vector3();
 
 function setPointer(e) {
-  pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
-  pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  const n = screenNorm(e.clientX, e.clientY);
+  pointer.x = n.nx;
+  pointer.y = n.ny;
 }
 
 function pickPage() {
@@ -1058,13 +1079,12 @@ function onDown(e) {
     if (dragging) releasePageDrag();
     gesture = null;
     const p = [...pointers.values()];
+    const mx = (p[0].x + p[1].x) / 2;
+    const my = (p[0].y + p[1].y) / 2;
     pinch = {
       dist: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1,
       scale: zoomed ? zoomScale : 1,
-      fx: focus.x,
-      fz: focus.z,
-      mx: (p[0].x + p[1].x) / 2,
-      my: (p[0].y + p[1].y) / 2,
+      anchor: worldUnder(mx, my, view.x, view.z, view.dist),
     };
     return;
   }
@@ -1110,9 +1130,12 @@ function onMove(e) {
     zoomed = zoomScale < 0.999;
     zoomBtn.classList.toggle('on', zoomed);
     const mx = (p[0].x + p[1].x) / 2, my = (p[0].y + p[1].y) / 2;
-    const wpp = worldPerPixel();
-    focus.x = pinch.fx - (mx - pinch.mx) * wpp;
-    focus.z = pinch.fz - (my - pinch.my) * wpp;
+    const dist = baseFraming().dist * zoomScale;
+    const halfH = dist * halfTan();
+    const halfW = halfH * (camera.aspect || 1);
+    const { nx, ny } = screenNorm(mx, my);
+    focus.x = pinch.anchor.x - nx * halfW;
+    focus.z = pinch.anchor.z + ny * halfH;
     invalidate();
     return;
   }
@@ -1145,9 +1168,29 @@ function onMove(e) {
   }
 }
 
+function resetView() {
+  zoomed = false;
+  zoomScale = 1;
+  zoomBtn.classList.remove('on');
+  const base = baseFraming();
+  focus.x = base.x;
+  focus.z = 0;
+  invalidate();
+}
+
+function cancelGestures() {
+  pointers.clear();
+  pinch = null;
+  gesture = null;
+  if (dragging) releasePageDrag();
+}
+
 function onUp(e) {
   pointers.delete(e.pointerId);
-  if (pointers.size < 2) pinch = null;
+  if (pointers.size < 2) {
+    pinch = null;
+    if (zoomed && zoomScale > 0.94) resetView();
+  }
 
   if (!gesture) {
     if (dragging && pointers.size === 0) releasePageDrag();
@@ -1182,7 +1225,8 @@ function onUp(e) {
 canvas.addEventListener('pointerdown', onDown);
 canvas.addEventListener('pointermove', onMove);
 canvas.addEventListener('pointerup', onUp);
-canvas.addEventListener('pointercancel', onUp);
+canvas.addEventListener('pointercancel', (e) => { onUp(e); cancelGestures(); });
+window.addEventListener('blur', cancelGestures);
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 btnPrev.addEventListener('click', () => startAutoTurn(-1));
