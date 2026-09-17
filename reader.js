@@ -74,12 +74,12 @@ const key = new THREE.DirectionalLight(0xfff2e0, 2.6);
 key.position.set(0.35, 6.0, -3.4);
 key.castShadow = true;
 key.shadow.mapSize.set(IS_MOBILE ? 512 : 1024, IS_MOBILE ? 512 : 1024);
-key.shadow.camera.left = -2.0;
-key.shadow.camera.right = 2.0;
-key.shadow.camera.top = 2.0;
-key.shadow.camera.bottom = -2.0;
+key.shadow.camera.left = -3.0;
+key.shadow.camera.right = 3.0;
+key.shadow.camera.top = 3.0;
+key.shadow.camera.bottom = -3.0;
 key.shadow.camera.near = 0.3;
-key.shadow.camera.far = 16;
+key.shadow.camera.far = 22;
 key.shadow.bias = 0;
 key.shadow.normalBias = 0;
 key.shadow.radius = 5;
@@ -126,9 +126,10 @@ const grainInput = document.getElementById('grain');
 const grainVal = document.getElementById('grainval');
 
 function setGrain(v) {
-  const t = Math.pow(v / 50, 1.6);
+  const t = Math.pow(v / 50, 2.2);
   grainUniforms.strength.value = 0.35 * t;
-  for (const g of grainMats) g.mat.bumpScale = g.bumpBase * t;
+  const bump = Math.min(t, 4);
+  for (const g of grainMats) g.mat.bumpScale = g.bumpBase * bump;
   grainVal.textContent = `${Math.round(v)}`;
   invalidate();
 }
@@ -1030,6 +1031,81 @@ function applyView(dt) {
   camera.lookAt(view.x, 0, view.z);
 }
 
+let lightX = 0.35;
+let lightZ = -3.4;
+const LIGHT_Y = 6;
+const LIGHT_RANGE = 5;
+
+function applyLight() {
+  key.position.set(lightX, LIGHT_Y, lightZ);
+  key.target.position.set(0, 0.15, 0);
+  key.target.updateMatrixWorld();
+  renderer.shadowMap.needsUpdate = true;
+  invalidate();
+}
+
+const lightHandle = document.getElementById('lighthandle');
+const lightBtn = document.getElementById('lightbtn');
+let lightEdit = false;
+let lightDragging = false;
+
+function placeLightHandle() {
+  const halfH = view.dist * halfTan();
+  const halfW = halfH * (camera.aspect || 1);
+  const nx = (lightX - view.x) / halfW;
+  const ny = -(lightZ - view.z) / halfH;
+  const r = canvas.getBoundingClientRect();
+  lightHandle.style.left = `${r.left + (nx + 1) * 0.5 * r.width}px`;
+  lightHandle.style.top = `${r.top + (1 - ny) * 0.5 * r.height}px`;
+}
+
+function endLightEdit() {
+  lightEdit = false;
+  lightDragging = false;
+  lightHandle.classList.remove('on', 'drag');
+  lightBtn.classList.remove('on');
+  document.body.classList.remove('light-edit');
+  invalidate();
+}
+
+function toggleLightEdit() {
+  if (lightEdit) { endLightEdit(); return; }
+  lightEdit = true;
+  lightHandle.classList.add('on');
+  lightBtn.classList.add('on');
+  document.body.classList.add('light-edit');
+  placeLightHandle();
+  invalidate();
+}
+
+lightBtn.addEventListener('click', toggleLightEdit);
+
+lightHandle.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  lightDragging = true;
+  lightHandle.classList.add('drag');
+  lightHandle.setPointerCapture(e.pointerId);
+});
+
+lightHandle.addEventListener('pointermove', (e) => {
+  if (!lightDragging) return;
+  const n = screenNorm(e.clientX, e.clientY);
+  const halfH = view.dist * halfTan();
+  const halfW = halfH * (camera.aspect || 1);
+  lightX = clamp(view.x + n.nx * halfW, -LIGHT_RANGE, LIGHT_RANGE);
+  lightZ = clamp(view.z - n.ny * halfH, -LIGHT_RANGE, LIGHT_RANGE);
+  applyLight();
+  placeLightHandle();
+});
+
+function finishLightDrag() {
+  if (!lightDragging) return;
+  endLightEdit();
+}
+lightHandle.addEventListener('pointerup', finishLightDrag);
+lightHandle.addEventListener('pointercancel', finishLightDrag);
+
 const zoomBtn = document.getElementById('zoom');
 
 function toggleZoom() {
@@ -1120,6 +1196,7 @@ function releasePageDrag() {
 }
 
 function onDown(e) {
+  if (lightEdit) return;
   bar.classList.remove('open');
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   canvas.setPointerCapture(e.pointerId);
@@ -1299,6 +1376,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowRight') startAutoTurn(1);
   else if (e.key === 'z' || e.key === 'Z') toggleZoom();
   else if (e.key === 's' || e.key === 'S') setSharpness(sharpUniform.amount.value > 0.001 ? 0 : 60);
+  else if (e.key === 'l' || e.key === 'L') toggleLightEdit();
 });
 
 function updateHUD() {
@@ -1565,6 +1643,7 @@ function animate(t) {
   const wasMoving = moving();
   updateViewTarget();
   applyView(dt);
+  if (lightEdit) placeLightHandle();
   updateStacks();
 
   const nowMoving = moving();
@@ -1581,5 +1660,6 @@ setTemperature(parseInt(tempInput.value, 10));
 setGrain(parseFloat(grainInput.value));
 setZoomLevel(parseFloat(zoomInput.value) / 100);
 setSharpness(parseFloat(sharpenInput.value));
+applyLight();
 init();
 requestAnimationFrame(animate);
