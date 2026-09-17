@@ -5,7 +5,7 @@ const IS_MOBILE = (window.matchMedia && window.matchMedia('(pointer: coarse)').m
 const CFG = {
   pageW: 1.0,
   thickness: 0.00227,
-  seg: IS_MOBILE ? 26 : 40,
+  seg: IS_MOBILE ? 30 : 56,
   rows: IS_MOBILE ? 4 : 6,
   spacingScale: 1.45,
   maxPages: IS_MOBILE ? 24 : 40,
@@ -126,9 +126,9 @@ const grainInput = document.getElementById('grain');
 const grainVal = document.getElementById('grainval');
 
 function setGrain(v) {
-  grainUniforms.strength.value = 0.007 * v;
-  const scale = v / 50;
-  for (const g of grainMats) g.mat.bumpScale = g.bumpBase * scale;
+  const t = Math.pow(v / 50, 1.6);
+  grainUniforms.strength.value = 0.35 * t;
+  for (const g of grainMats) g.mat.bumpScale = g.bumpBase * t;
   grainVal.textContent = `${Math.round(v)}`;
   invalidate();
 }
@@ -167,13 +167,14 @@ scene.add(contact);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
 
-const RIPPLE = 0.002;
+const BASE_LIFT = 0.0025;
+const RIPPLE = 0.003;
 
 function pageRipple(s, z) {
   return RIPPLE * (
-    Math.sin(s * 11 + z * 1.3) * 0.34 +
-    Math.sin(s * 21 - z * 2.4) * 0.36 +
-    Math.sin(s * 32 + z * 3.4) * 0.3
+    Math.sin(s * 15 + z * 1.5) * 0.34 +
+    Math.sin(s * 30 - z * 2.8) * 0.36 +
+    Math.sin(s * 44 + z * 3.8) * 0.3
   );
 }
 
@@ -512,7 +513,7 @@ function applyPaperGrain(mat, bumpBase) {
       )
       .replace(
         '#include <roughnessmap_fragment>',
-        '#include <roughnessmap_fragment>\n#ifdef USE_MAP\n  roughnessFactor = clamp(roughnessFactor - grainStrength * 0.5 * (paperGrain - 0.5) * 2.0, 0.2, 1.0);\n#endif'
+        '#include <roughnessmap_fragment>\n#ifdef USE_MAP\n  roughnessFactor = clamp(roughnessFactor - grainStrength * 0.72 * (paperGrain - 0.5) * 2.0, 0.16, 1.0);\n#endif'
       );
   };
 }
@@ -655,7 +656,7 @@ let depth = CFG.pageW * 1.414;
 
 function flatY(side, leaf) {
   const rank = side === 'R' ? (book.leaves.length - leaf) : (leaf + 1);
-  return rank * book.spacing;
+  return BASE_LIFT + rank * book.spacing;
 }
 
 function newLeaf(frontIdx, backIdx) {
@@ -861,8 +862,8 @@ function updateStacks() {
     else if (leaf.side === 'R') R++;
   }
   const clear = CFG.thickness * 0.5 + RIPPLE;
-  const lh = Math.max(0.0002, L * book.spacing - clear);
-  const rh = Math.max(0.0002, R * book.spacing - clear);
+  const lh = Math.max(0.0002, BASE_LIFT + L * book.spacing - clear);
+  const rh = Math.max(0.0002, BASE_LIFT + R * book.spacing - clear);
   leftBlock.scale.set(CFG.pageW, lh, depth);
   leftBlock.position.set(-CFG.pageW / 2, lh / 2, 0);
   rightBlock.scale.set(CFG.pageW, rh, depth);
