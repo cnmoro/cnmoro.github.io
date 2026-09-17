@@ -70,24 +70,24 @@ const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 60);
 camera.up.set(0, 0, -1);
 camera.position.set(0, 4, 0);
 
-const LIGHT_BASE = 130;
+const LIGHT_BASE = 70;
 
 const key = new THREE.SpotLight(0xfff2e0, LIGHT_BASE);
-key.angle = 0.62;
-key.penumbra = 0.75;
+key.angle = 0.8;
+key.penumbra = 0.85;
 key.decay = 2;
 key.distance = 0;
-key.position.set(0.35, 6.0, -3.4);
+key.position.set(0.6, 4.6, -1.6);
 key.castShadow = true;
 key.shadow.mapSize.set(IS_MOBILE ? 512 : 1024, IS_MOBILE ? 512 : 1024);
-key.shadow.camera.near = 0.5;
-key.shadow.camera.far = 26;
+key.shadow.camera.near = 0.3;
+key.shadow.camera.far = 20;
 key.shadow.bias = -0.0004;
 key.shadow.normalBias = 0.012;
 key.shadow.radius = 5;
 key.shadow.blurSamples = 20;
 scene.add(key);
-key.target.position.set(0, 0, 0);
+key.target.position.set(0.6, 0, -1.6);
 scene.add(key.target);
 
 scene.add(new THREE.HemisphereLight(0x9fb6e0, 0x1b1712, 0.14));
@@ -1035,15 +1035,15 @@ function applyView(dt) {
   camera.lookAt(view.x, 0, view.z);
 }
 
-let lightX = 0.35;
-let lightZ = -3.4;
+let lightX = 0.6;
+let lightZ = -1.6;
 let lightPower = 1;
-const LIGHT_Y = 6;
-const LIGHT_RANGE = 5;
+const LIGHT_Y = 4.6;
+const LIGHT_RANGE = 2.6;
 
 function applyLight() {
   key.position.set(lightX, LIGHT_Y, lightZ);
-  key.target.position.set(0, 0, 0);
+  key.target.position.set(lightX, 0, lightZ);
   key.target.updateMatrixWorld();
   key.intensity = LIGHT_BASE * lightPower;
   renderer.shadowMap.needsUpdate = true;
@@ -1057,19 +1057,26 @@ const lightBtn = document.getElementById('lightbtn');
 let lightEdit = false;
 let lightDragging = false;
 
-const LIGHT_INSET = 0.86;
-
 function placeLightHandle() {
+  const halfH = view.dist * halfTan();
+  const halfW = halfH * (camera.aspect || 1);
   const r = canvas.getBoundingClientRect();
-  const u = lightX / (2 * LIGHT_RANGE);
-  const v = lightZ / (2 * LIGHT_RANGE);
-  lightHandle.style.left = `${r.left + (0.5 + u * LIGHT_INSET) * r.width}px`;
-  lightHandle.style.top = `${r.top + (0.5 + v * LIGHT_INSET) * r.height}px`;
+  const nx = (lightX - view.x) / halfW;
+  const ny = -(lightZ - view.z) / halfH;
+  let x = r.left + (nx + 1) * 0.5 * r.width;
+  let y = r.top + (1 - ny) * 0.5 * r.height;
+  const pad = 26;
+  const cx = clamp(x, r.left + pad, r.right - pad);
+  const cy = clamp(y, r.top + pad, r.bottom - pad);
+  lightHandle.classList.toggle('edge', cx !== x || cy !== y);
+  lightHandle.style.left = `${cx}px`;
+  lightHandle.style.top = `${cy}px`;
 }
 
 function endLightEdit() {
   lightEdit = false;
   lightDragging = false;
+  lightGrab = null;
   lightHandle.classList.remove('on', 'drag');
   lightBtn.classList.remove('on');
   document.body.classList.remove('light-edit');
@@ -1090,21 +1097,23 @@ function toggleLightEdit() {
 
 lightBtn.addEventListener('click', toggleLightEdit);
 
+let lightGrab = null;
+
 lightHandle.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   e.stopPropagation();
   lightDragging = true;
   lightHandle.classList.add('drag');
   lightHandle.setPointerCapture(e.pointerId);
+  lightGrab = { x: e.clientX, y: e.clientY, lx: lightX, lz: lightZ };
 });
 
 lightHandle.addEventListener('pointermove', (e) => {
-  if (!lightDragging) return;
-  const r = canvas.getBoundingClientRect();
-  const u = (e.clientX - r.left) / r.width - 0.5;
-  const v = (e.clientY - r.top) / r.height - 0.5;
-  lightX = clamp((u / LIGHT_INSET) * 2 * LIGHT_RANGE, -LIGHT_RANGE, LIGHT_RANGE);
-  lightZ = clamp((v / LIGHT_INSET) * 2 * LIGHT_RANGE, -LIGHT_RANGE, LIGHT_RANGE);
+  if (!lightDragging || !lightGrab) return;
+  const w0 = worldUnder(lightGrab.x, lightGrab.y, view.x, view.z, view.dist);
+  const w1 = worldUnder(e.clientX, e.clientY, view.x, view.z, view.dist);
+  lightX = clamp(lightGrab.lx + (w1.x - w0.x), -LIGHT_RANGE, LIGHT_RANGE);
+  lightZ = clamp(lightGrab.lz + (w1.z - w0.z), -LIGHT_RANGE, LIGHT_RANGE);
   applyLight();
   placeLightHandle();
 });
