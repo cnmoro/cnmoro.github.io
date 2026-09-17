@@ -4,9 +4,9 @@ const IS_MOBILE = (window.matchMedia && window.matchMedia('(pointer: coarse)').m
 
 const CFG = {
   pageW: 1.0,
-  thickness: 0.0034,
-  seg: IS_MOBILE ? 18 : 26,
-  rows: IS_MOBILE ? 3 : 5,
+  thickness: 0.00227,
+  seg: IS_MOBILE ? 26 : 40,
+  rows: IS_MOBILE ? 4 : 6,
   spacingScale: 1.45,
   maxPages: IS_MOBILE ? 24 : 40,
   texWidth: IS_MOBILE ? 640 : 900,
@@ -167,12 +167,13 @@ scene.add(contact);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
 
-const RIPPLE = 0.0013;
+const RIPPLE = 0.002;
 
 function pageRipple(s, z) {
   return RIPPLE * (
-    Math.sin(s * 4.7 + z * 1.3) * 0.55 +
-    Math.sin(s * 2.1 - z * 2.9) * 0.45
+    Math.sin(s * 11 + z * 1.3) * 0.34 +
+    Math.sin(s * 21 - z * 2.4) * 0.36 +
+    Math.sin(s * 32 + z * 3.4) * 0.3
   );
 }
 
@@ -859,7 +860,7 @@ function updateStacks() {
     if (leaf.side === 'L') L++;
     else if (leaf.side === 'R') R++;
   }
-  const clear = CFG.thickness * 0.5 + book.spacing * 0.06;
+  const clear = CFG.thickness * 0.5 + RIPPLE;
   const lh = Math.max(0.0002, L * book.spacing - clear);
   const rh = Math.max(0.0002, R * book.spacing - clear);
   leftBlock.scale.set(CFG.pageW, lh, depth);
