@@ -1044,19 +1044,21 @@ function applyLight() {
   invalidate();
 }
 
+const hintEl = document.getElementById('hint');
+const HINT_TEXT = hintEl ? hintEl.textContent : '';
 const lightHandle = document.getElementById('lighthandle');
 const lightBtn = document.getElementById('lightbtn');
 let lightEdit = false;
 let lightDragging = false;
 
+const LIGHT_INSET = 0.86;
+
 function placeLightHandle() {
-  const halfH = view.dist * halfTan();
-  const halfW = halfH * (camera.aspect || 1);
-  const nx = (lightX - view.x) / halfW;
-  const ny = -(lightZ - view.z) / halfH;
   const r = canvas.getBoundingClientRect();
-  lightHandle.style.left = `${r.left + (nx + 1) * 0.5 * r.width}px`;
-  lightHandle.style.top = `${r.top + (1 - ny) * 0.5 * r.height}px`;
+  const u = lightX / (2 * LIGHT_RANGE);
+  const v = lightZ / (2 * LIGHT_RANGE);
+  lightHandle.style.left = `${r.left + (0.5 + u * LIGHT_INSET) * r.width}px`;
+  lightHandle.style.top = `${r.top + (0.5 + v * LIGHT_INSET) * r.height}px`;
 }
 
 function endLightEdit() {
@@ -1065,6 +1067,7 @@ function endLightEdit() {
   lightHandle.classList.remove('on', 'drag');
   lightBtn.classList.remove('on');
   document.body.classList.remove('light-edit');
+  if (hintEl) hintEl.textContent = HINT_TEXT;
   invalidate();
 }
 
@@ -1074,6 +1077,7 @@ function toggleLightEdit() {
   lightHandle.classList.add('on');
   lightBtn.classList.add('on');
   document.body.classList.add('light-edit');
+  if (hintEl) hintEl.textContent = 'Drag the sun to move the light';
   placeLightHandle();
   invalidate();
 }
@@ -1090,11 +1094,11 @@ lightHandle.addEventListener('pointerdown', (e) => {
 
 lightHandle.addEventListener('pointermove', (e) => {
   if (!lightDragging) return;
-  const n = screenNorm(e.clientX, e.clientY);
-  const halfH = view.dist * halfTan();
-  const halfW = halfH * (camera.aspect || 1);
-  lightX = clamp(view.x + n.nx * halfW, -LIGHT_RANGE, LIGHT_RANGE);
-  lightZ = clamp(view.z - n.ny * halfH, -LIGHT_RANGE, LIGHT_RANGE);
+  const r = canvas.getBoundingClientRect();
+  const u = (e.clientX - r.left) / r.width - 0.5;
+  const v = (e.clientY - r.top) / r.height - 0.5;
+  lightX = clamp((u / LIGHT_INSET) * 2 * LIGHT_RANGE, -LIGHT_RANGE, LIGHT_RANGE);
+  lightZ = clamp((v / LIGHT_INSET) * 2 * LIGHT_RANGE, -LIGHT_RANGE, LIGHT_RANGE);
   applyLight();
   placeLightHandle();
 });
