@@ -10,12 +10,11 @@ const CFG = {
   spacingScale: 1.45,
   maxPages: IS_MOBILE ? 24 : 40,
   texWidth: IS_MOBILE ? 640 : 900,
-  maxTex: IS_MOBILE ? 6 : 10,
+  maxTex: IS_MOBILE ? 6 : 8,
 };
 
-const MIN_TEX_W = CFG.texWidth;
 const MAX_TEX_W = IS_MOBILE ? 1536 : 2048;
-const TEX_BUDGET = IS_MOBILE ? 12e6 : 26e6;
+const TEX_BUDGET = IS_MOBILE ? 20e6 : 44e6;
 
 const isPortrait = () => window.innerHeight > window.innerWidth;
 let singlePage = IS_MOBILE && isPortrait();
@@ -60,7 +59,8 @@ renderer.shadowMap.type = THREE.VSMShadowMap;
 renderer.shadowMap.autoUpdate = false;
 
 let needsRender = true;
-let lodDirty = true;
+let firstLoadSet = null;
+let firstLoadTimer = 0;
 function invalidate() { needsRender = true; }
 
 const scene = new THREE.Scene();
@@ -561,11 +561,50 @@ function evict() {
   }
 }
 
-function desiredTexWidth() {
-  const wpp = worldPerPixel();
-  if (!wpp || !isFinite(wpp)) return MIN_TEX_W;
-  const cssWidth = CFG.pageW / wpp;
-  return Math.round(clamp(cssWidth * renderer.getPixelRatio(), MIN_TEX_W, MAX_TEX_W));
+const renderQueue = [];
+const queued = new Set();
+let rendering = false;
+
+function queueTexture(pageIdx, pri) {
+  if (pageIdx < 0 || !pageSource || pageIdx >= pageSource.count) return;
+  if (texCache.has(pageIdx) || pageSource.pending.has(pageIdx)) return;
+  if (queued.has(pageIdx)) {
+    const j = renderQueue.find((q) => q.idx === pageIdx);
+    if (j && pri < j.pri) j.pri = pri;
+    return;
+  }
+  queued.add(pageIdx);
+  renderQueue.push({ idx: pageIdx, pri, seq: texSeq++ });
+  pumpRenderQueue();
+}
+
+function pumpRenderQueue() {
+  if (rendering || !pageSource || renderQueue.length === 0) return;
+  renderQueue.sort((a, b) => (a.pri - b.pri) || (a.seq - b.seq));
+  const job = renderQueue.shift();
+  queued.delete(job.idx);
+  if (texCache.has(job.idx) || pageSource.pending.has(job.idx)) { pumpRenderQueue(); return; }
+  rendering = true;
+  pageSource.pending.add(job.idx);
+  pageSource.render(job.idx, MAX_TEX_W).then((canvasEl) => {
+    pageSource.pending.delete(job.idx);
+    rendering = false;
+    if (canvasEl) {
+      storeEntry(job.idx, {
+        tex: makeTexture(canvasEl),
+        used: ++texSeq,
+        width: canvasEl.width,
+        height: canvasEl.height,
+        pixels: canvasEl.width * canvasEl.height,
+      });
+      invalidate();
+    }
+    pumpRenderQueue();
+  }).catch(() => {
+    pageSource.pending.delete(job.idx);
+    rendering = false;
+    pumpRenderQueue();
+  });
 }
 
 function makeTexture(canvasEl) {
@@ -585,63 +624,21 @@ function storeEntry(pageIdx, entry) {
     entry.tex.dispose();
     texCache.delete(pageIdx);
   }
+  if (firstLoadSet) {
+    firstLoadSet.delete(pageIdx);
+    if (firstLoadSet.size === 0) { firstLoadSet = null; clearTimeout(firstLoadTimer); hideLoaderSoon(); }
+  }
 }
 
-function getTexture(pageIdx) {
-  if (pageIdx < 0 || pageIdx >= pageSource.count) return blankTex;
+function getTexture(pageIdx, pri) {
+  if (pageIdx < 0 || !pageSource || pageIdx >= pageSource.count) return blankTex;
   const hit = texCache.get(pageIdx);
   if (hit) {
     hit.used = ++texSeq;
     return hit.tex;
   }
-  if (!pageSource.pending.has(pageIdx)) {
-    pageSource.pending.add(pageIdx);
-    pageSource.render(pageIdx, desiredTexWidth()).then((canvasEl) => {
-      pageSource.pending.delete(pageIdx);
-      if (!canvasEl) return;
-      storeEntry(pageIdx, {
-        tex: makeTexture(canvasEl),
-        used: ++texSeq,
-        width: canvasEl.width,
-        height: canvasEl.height,
-        pixels: canvasEl.width * canvasEl.height,
-      });
-      invalidate();
-    }).catch(() => pageSource.pending.delete(pageIdx));
-  }
+  queueTexture(pageIdx, pri === undefined ? 1 : pri);
   return blankTex;
-}
-
-function reTexture(idx, entry, width) {
-  if (entry.reloading || !pageSource) return;
-  entry.reloading = true;
-  const old = entry.tex;
-  pageSource.render(idx, Math.round(width)).then((canvasEl) => {
-    entry.reloading = false;
-    if (!canvasEl || !texCache.has(idx)) return;
-    const t = makeTexture(canvasEl);
-    entry.tex = t;
-    entry.used = ++texSeq;
-    entry.width = canvasEl.width;
-    entry.height = canvasEl.height;
-    entry.pixels = canvasEl.width * canvasEl.height;
-    applyTex(idx, t);
-    old.dispose();
-    evict();
-    invalidate();
-  }).catch(() => { entry.reloading = false; });
-}
-
-function updateLOD() {
-  if (!pageSource || book.turning) return;
-  const want = desiredTexWidth();
-  refreshActivePages();
-  for (const idx of book.activePages) {
-    const e = texCache.get(idx);
-    if (!e) continue;
-    if (want > e.width * 1.3 && e.width < MAX_TEX_W) reTexture(idx, e, want);
-    else if (e.width > want * 2.2 && e.width > MIN_TEX_W) reTexture(idx, e, want);
-  }
 }
 
 const book = {
@@ -695,19 +692,19 @@ function fadeLeaf(leaf, k) {
 function refreshActivePages() {
   const N = book.leaves.length;
   book.activePages.clear();
-  const order = zoomed
-    ? [book.p, book.p - 1]
-    : [book.p, book.p - 1, book.p + 1, book.p - 2, book.p + 2];
+  const order = [book.p, book.p - 1, book.p + 1];
   const active = new Set();
-  for (const i of order) {
+  for (let k = 0; k < order.length; k++) {
+    const i = order[k];
     if (i < 0 || i >= N || active.has(i)) continue;
     active.add(i);
+    const pri = k < 2 ? 0 : 1;
     const leaf = book.leaves[i];
     book.activePages.add(leaf.front);
     book.activePages.add(leaf.back);
-    const f = getTexture(leaf.front);
+    const f = getTexture(leaf.front, pri);
     if (leaf.frontMat.map !== f) { leaf.frontMat.map = f; leaf.frontMat.needsUpdate = true; }
-    const b = getTexture(leaf.back);
+    const b = getTexture(leaf.back, pri);
     if (leaf.backMat.map !== b) { leaf.backMat.map = b; leaf.backMat.needsUpdate = true; }
   }
   for (let i = 0; i < N; i++) {
@@ -718,6 +715,7 @@ function refreshActivePages() {
   }
   evict();
 }
+
 
 function setLeafFlat(leaf, side) {
   const phi = side === 'R' ? 0 : Math.PI;
@@ -807,7 +805,6 @@ function finalizeTurn() {
     setLeafFlat(t.leaf, t.leaf.side);
     book.turning = null;
     renderer.shadowMap.needsUpdate = true;
-    lodDirty = true;
     invalidate();
     refreshActivePages();
     updateHUD();
@@ -1351,7 +1348,6 @@ function buildBook(count) {
   updateHUD();
   setGrain(parseFloat(grainInput.value));
   renderer.shadowMap.needsUpdate = true;
-  lodDirty = true;
   invalidate();
 }
 
@@ -1456,13 +1452,29 @@ function hideLoaderSoon() {
   setTimeout(() => loader.classList.add('hidden'), 350);
 }
 
+function markFirstLoad() {
+  const s = new Set();
+  for (const i of [book.p, book.p - 1]) {
+    if (i < 0 || i >= book.leaves.length) continue;
+    const leaf = book.leaves[i];
+    if (leaf.front >= 0) s.add(leaf.front);
+    if (leaf.back >= 0) s.add(leaf.back);
+  }
+  firstLoadSet = s.size ? s : null;
+  if (!firstLoadSet) { hideLoaderSoon(); return; }
+  clearTimeout(firstLoadTimer);
+  firstLoadTimer = setTimeout(() => {
+    if (firstLoadSet) { firstLoadSet = null; hideLoaderSoon(); }
+  }, 6000);
+}
+
 function bootFallback() {
   pageSource = makeSyntheticSource();
   depth = CFG.pageW * (1130 / 800);
   buildBook(pageSource.count);
   fitCamera();
   updateStacks();
-  hideLoaderSoon();
+  markFirstLoad();
 }
 
 async function init() {
@@ -1474,7 +1486,7 @@ async function init() {
     fitCamera();
     updateStacks();
     updateHUD();
-    hideLoaderSoon();
+    markFirstLoad();
   } catch (err) {
     errBox.style.display = 'block';
     errBox.textContent = 'Could not fetch the sample PDF (network/CORS). Loading a built-in document instead — use “Open PDF” for your own file.';
@@ -1496,7 +1508,7 @@ fileInput.addEventListener('change', async (e) => {
     fitCamera();
     updateStacks();
     updateHUD();
-    hideLoaderSoon();
+    markFirstLoad();
   } catch (err) {
     errBox.style.display = 'block';
     errBox.textContent = 'That file could not be opened as a PDF.';
@@ -1556,7 +1568,6 @@ function animate(t) {
   updateStacks();
 
   const nowMoving = moving();
-  if (!nowMoving && wasMoving) lodDirty = true;
 
   if (book.turning) renderer.shadowMap.needsUpdate = true;
   if (book.turning || wasMoving || needsRender) {
@@ -1564,10 +1575,6 @@ function animate(t) {
     needsRender = false;
   }
 
-  if (lodDirty && !book.turning && !nowMoving) {
-    lodDirty = false;
-    updateLOD();
-  }
 }
 
 setTemperature(parseInt(tempInput.value, 10));
