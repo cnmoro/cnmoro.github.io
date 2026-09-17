@@ -943,11 +943,6 @@ function updateViewTarget() {
   const base = baseFraming();
   viewTarget.dist = zoomed ? base.dist * zoomScale : base.dist;
   if (zoomed) {
-    if (!dragging && !singlePage) {
-      const w = cursorWorldFit(base);
-      focus.x = w.x;
-      focus.z = w.z;
-    }
     viewTarget.x = focus.x;
     viewTarget.z = focus.z;
   } else {
@@ -956,6 +951,35 @@ function updateViewTarget() {
   }
   clampFocus(base.x);
 }
+
+function zoomToward(clientX, clientY, nextScale) {
+  const anchor = worldUnder(clientX, clientY, viewTarget.x, viewTarget.z, viewTarget.dist);
+  const base = baseFraming();
+  const dist = base.dist * nextScale;
+  const halfH = dist * halfTan();
+  const halfW = halfH * (camera.aspect || 1);
+  const n = screenNorm(clientX, clientY);
+  focus.x = anchor.x - n.nx * halfW;
+  focus.z = anchor.z + n.ny * halfH;
+  zoomScale = nextScale;
+  zoomed = true;
+  zoomBtn.classList.add('on');
+  invalidate();
+}
+
+function onWheel(e) {
+  e.preventDefault();
+  const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 100 : 1;
+  const dy = clamp(e.deltaY * unit, -420, 420);
+  const cur = zoomed ? zoomScale : 1;
+  const next = clamp(cur * Math.exp(dy * 0.0016), MIN_ZOOM, 1);
+  if (next >= 0.999) {
+    if (zoomed) resetView();
+    return;
+  }
+  zoomToward(e.clientX, e.clientY, next);
+}
+canvas.addEventListener('wheel', onWheel, { passive: false });
 
 function fitCamera() {
   const w = viewWidthPx(), h = viewHeightPx();
@@ -1123,6 +1147,12 @@ function onDown(e) {
     return;
   }
 
+  if (zoomed) {
+    gesture = { mode: 'pan', lx: e.clientX, ly: e.clientY };
+    canvas.classList.add('grabbing');
+    return;
+  }
+
   if (book.turning) return;
   setPointer(e);
   const pk = pickPage();
@@ -1241,6 +1271,12 @@ function onUp(e) {
     const dt = performance.now() - gesture.t;
     if (Math.abs(gesture.dx) > 42) startAutoTurn(gesture.dx < 0 ? 1 : -1);
     else if (dt < 320 && Math.abs(gesture.dx) < 14) startAutoTurn(1);
+    gesture = null;
+    return;
+  }
+
+  if (gesture.mode === 'pan') {
+    canvas.classList.remove('grabbing');
     gesture = null;
     return;
   }
