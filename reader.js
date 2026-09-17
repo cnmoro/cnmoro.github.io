@@ -696,30 +696,39 @@ function fadeLeaf(leaf, k) {
 function refreshActivePages() {
   const N = book.leaves.length;
   book.activePages.clear();
-  const order = [book.p, book.p - 1, book.p + 1];
-  const active = new Set();
-  for (let k = 0; k < order.length; k++) {
-    const i = order[k];
-    if (i < 0 || i >= N || active.has(i)) continue;
-    active.add(i);
-    const pri = k < 2 ? 0 : 1;
+  const assigned = new Set();
+  const turningIdx = book.turning ? book.turning.index : -1;
+
+  const add = (i, face, pri) => {
+    if (i < 0 || i >= N) return;
     const leaf = book.leaves[i];
-    book.activePages.add(leaf.front);
-    book.activePages.add(leaf.back);
-    const f = getTexture(leaf.front, pri);
-    if (leaf.frontMat.map !== f) { leaf.frontMat.map = f; leaf.frontMat.needsUpdate = true; }
-    const b = getTexture(leaf.back, pri);
-    if (leaf.backMat.map !== b) { leaf.backMat.map = b; leaf.backMat.needsUpdate = true; }
-  }
-  for (let i = 0; i < N; i++) {
-    if (active.has(i)) continue;
-    const leaf = book.leaves[i];
-    if (leaf.frontMat.map !== blankTex) { leaf.frontMat.map = blankTex; leaf.frontMat.needsUpdate = true; }
-    if (leaf.backMat.map !== blankTex) { leaf.backMat.map = blankTex; leaf.backMat.needsUpdate = true; }
+    const idx = face === 'front' ? leaf.front : leaf.back;
+    if (idx < 0) return;
+    const mat = face === 'front' ? leaf.frontMat : leaf.backMat;
+    const p = i === turningIdx ? 0 : pri;
+    assigned.add(mat);
+    book.activePages.add(idx);
+    const tex = getTexture(idx, p);
+    if (mat.map !== tex) { mat.map = tex; mat.needsUpdate = true; }
+  };
+
+  add(book.p, 'front', 0);
+  add(book.p - 1, 'back', 0);
+  add(book.p, 'back', 1);
+  add(book.p + 1, 'front', 1);
+  add(book.p - 1, 'front', 1);
+  add(book.p - 2, 'back', 1);
+
+  for (const leaf of book.leaves) {
+    for (const mat of [leaf.frontMat, leaf.backMat]) {
+      if (!assigned.has(mat) && mat.map !== blankTex) {
+        mat.map = blankTex;
+        mat.needsUpdate = true;
+      }
+    }
   }
   evict();
 }
-
 
 function setLeafFlat(leaf, side) {
   const phi = side === 'R' ? 0 : Math.PI;
