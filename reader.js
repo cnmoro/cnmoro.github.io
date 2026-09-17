@@ -70,25 +70,28 @@ const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 60);
 camera.up.set(0, 0, -1);
 camera.position.set(0, 4, 0);
 
-const key = new THREE.DirectionalLight(0xfff2e0, 2.6);
+const LIGHT_BASE = 130;
+
+const key = new THREE.SpotLight(0xfff2e0, LIGHT_BASE);
+key.angle = 0.62;
+key.penumbra = 0.75;
+key.decay = 2;
+key.distance = 0;
 key.position.set(0.35, 6.0, -3.4);
 key.castShadow = true;
 key.shadow.mapSize.set(IS_MOBILE ? 512 : 1024, IS_MOBILE ? 512 : 1024);
-key.shadow.camera.left = -3.0;
-key.shadow.camera.right = 3.0;
-key.shadow.camera.top = 3.0;
-key.shadow.camera.bottom = -3.0;
-key.shadow.camera.near = 0.3;
-key.shadow.camera.far = 22;
-key.shadow.bias = 0;
-key.shadow.normalBias = 0;
+key.shadow.camera.near = 0.5;
+key.shadow.camera.far = 26;
+key.shadow.bias = -0.0004;
+key.shadow.normalBias = 0.012;
 key.shadow.radius = 5;
 key.shadow.blurSamples = 20;
 scene.add(key);
+key.target.position.set(0, 0, 0);
 scene.add(key.target);
 
-scene.add(new THREE.HemisphereLight(0xbcd0ff, 0x241d16, 0.55));
-const fill = new THREE.DirectionalLight(0x9fb4ff, 0.4);
+scene.add(new THREE.HemisphereLight(0x9fb6e0, 0x1b1712, 0.14));
+const fill = new THREE.DirectionalLight(0x9fb4ff, 0.12);
 fill.position.set(-1.6, 2.2, 3.2);
 scene.add(fill);
 
@@ -869,8 +872,9 @@ function updateStacks() {
   leftBlock.visible = !singlePage;
   for (let i = 0; i < book.leaves.length; i++) {
     const leaf = book.leaves[i];
-    if (book.turning && book.turning.index === i) { leaf.mesh.visible = true; continue; }
+    if (book.turning && book.turning.index === i) { leaf.mesh.visible = true; leaf.mesh.castShadow = true; continue; }
     leaf.mesh.visible = !singlePage || leaf.side !== 'L';
+    leaf.mesh.castShadow = false;
   }
 }
 
@@ -1033,13 +1037,15 @@ function applyView(dt) {
 
 let lightX = 0.35;
 let lightZ = -3.4;
+let lightPower = 1;
 const LIGHT_Y = 6;
 const LIGHT_RANGE = 5;
 
 function applyLight() {
   key.position.set(lightX, LIGHT_Y, lightZ);
-  key.target.position.set(0, 0.15, 0);
+  key.target.position.set(0, 0, 0);
   key.target.updateMatrixWorld();
+  key.intensity = LIGHT_BASE * lightPower;
   renderer.shadowMap.needsUpdate = true;
   invalidate();
 }
@@ -1138,6 +1144,16 @@ function setSharpness(v) {
   invalidate();
 }
 sharpenInput.addEventListener('input', () => setSharpness(parseFloat(sharpenInput.value)));
+
+const powerInput = document.getElementById('power');
+const powerVal = document.getElementById('powerval');
+
+function setLightPower(v) {
+  lightPower = clamp(v, 0, 300) / 100;
+  powerVal.textContent = String(Math.round(v));
+  applyLight();
+}
+powerInput.addEventListener('input', () => setLightPower(parseFloat(powerInput.value)));
 
 const zoomInput = document.getElementById('zoomlevel');
 const zoomVal = document.getElementById('zoomval');
@@ -1664,6 +1680,7 @@ setTemperature(parseInt(tempInput.value, 10));
 setGrain(parseFloat(grainInput.value));
 setZoomLevel(parseFloat(zoomInput.value) / 100);
 setSharpness(parseFloat(sharpenInput.value));
+setLightPower(parseFloat(powerInput.value));
 applyLight();
 init();
 requestAnimationFrame(animate);

@@ -72,22 +72,23 @@
   #bar #zoom.on { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.32); color: #fff; }
   #panel { display: contents; }
   #more { display: none; }
-  #templabel, #grainlabel, #zoomlabel, #sharplabel { display: inline-flex; align-items: center; gap: 9px; padding: 0 6px 0 10px; font-size: 12px; color: var(--dim); }
-  #temp, #grain, #zoomlevel, #sharpen {
+  #templabel, #powerlabel, #grainlabel, #zoomlabel, #sharplabel { display: inline-flex; align-items: center; gap: 9px; padding: 0 6px 0 10px; font-size: 12px; color: var(--dim); }
+  #temp, #power, #grain, #zoomlevel, #sharpen {
     -webkit-appearance: none; appearance: none; width: 96px; height: 3px; border-radius: 3px;
     outline: none; cursor: pointer;
   }
   #temp { background: linear-gradient(90deg, #ffb46b, #fff3e0 46%, #bcd4ff); }
   #grain { background: repeating-linear-gradient(90deg, #6d6a63 0 2px, #b9b3a6 2px 4px, #8b877e 4px 6px); }
   #zoomlevel { background: linear-gradient(90deg, #6d6a63, #ece7dd); }
+  #power { background: linear-gradient(90deg, #4a4438, #ffe6b0); }
   #sharpen { background: linear-gradient(90deg, #6d6a63, #fff); }
-  #temp::-webkit-slider-thumb, #grain::-webkit-slider-thumb, #zoomlevel::-webkit-slider-thumb, #sharpen::-webkit-slider-thumb {
+  #temp::-webkit-slider-thumb, #grain::-webkit-slider-thumb, #zoomlevel::-webkit-slider-thumb, #sharpen::-webkit-slider-thumb, #power::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%;
     background: #ece7dd; border: 2px solid #14151a; box-shadow: 0 1px 4px rgba(0,0,0,.6); cursor: grab;
   }
-  #temp::-moz-range-thumb, #grain::-moz-range-thumb, #zoomlevel::-moz-range-thumb, #sharpen::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #ece7dd; border: 2px solid #14151a; cursor: grab; }
+  #temp::-moz-range-thumb, #grain::-moz-range-thumb, #zoomlevel::-moz-range-thumb, #sharpen::-moz-range-thumb, #power::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #ece7dd; border: 2px solid #14151a; cursor: grab; }
   #tempval { min-width: 46px; color: #cfc9bd; font-variant-numeric: tabular-nums; }
-  #grainval, #zoomval, #sharpenval { min-width: 30px; color: #cfc9bd; font-variant-numeric: tabular-nums; }
+  #grainval, #zoomval, #sharpenval, #powerval { min-width: 30px; color: #cfc9bd; font-variant-numeric: tabular-nums; }
 
   #loader {
     position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -117,10 +118,10 @@
     }
     #bar.open #panel { display: flex; }
     #panel .sep { display: none; }
-    #temp, #grain, #zoomlevel, #sharpen { width: 92px; }
-    #templabel, #grainlabel, #zoomlabel, #sharplabel { font-size: 11px; gap: 7px; padding: 0; }
+    #temp, #power, #grain, #zoomlevel, #sharpen { width: 92px; }
+    #templabel, #powerlabel, #grainlabel, #zoomlabel, #sharplabel { font-size: 11px; gap: 7px; padding: 0; }
     #tempval { min-width: 40px; }
-    #grainval, #zoomval, #sharpenval { min-width: 26px; }
+    #grainval, #zoomval, #sharpenval, #powerval { min-width: 26px; }
     #bar #filelabel { padding: 0 10px; font-size: 11px; height: 30px; }
   }
 </style>
@@ -143,6 +144,7 @@
   <div id="panel">
     <span class="sep"></span>
     <label id="templabel">Light<input id="temp" type="range" min="2000" max="10000" step="100" value="4800"><span id="tempval">4800K</span></label>
+    <label id="powerlabel">Power<input id="power" type="range" min="0" max="200" step="5" value="100"><span id="powerval">100</span></label>
     <span class="sep"></span>
     <label id="grainlabel">Grain<input id="grain" type="range" min="0" max="100" step="1" value="50"><span id="grainval">50</span></label>
     <span class="sep"></span>
