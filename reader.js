@@ -482,7 +482,7 @@ const grainMats = [];
 function applyPaperGrain(mat, bumpBase) {
   mat.bumpMap = grainTex;
   mat.bumpScale = bumpBase;
-  mat.userData.paperTexel = new THREE.Vector2(1 / 900, 1 / 1273);
+  mat.userData.paperTexel = { value: new THREE.Vector2(1 / 900, 1 / 1273) };
   grainMats.push({ mat, bumpBase });
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.grainMap = { value: grainTex };
