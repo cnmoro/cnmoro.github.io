@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>PdfFlip — 3D book</title>
+<style>
+  :root {
+    --ink: #ece7dd;
+    --dim: #8b877e;
+    --line: rgba(255,255,255,.10);
+    --panel: rgba(20,21,25,.72);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: #0a0b0e;
+    color: var(--ink);
+    font: 13px/1.4 ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #c { position: fixed; inset: 0; display: block; touch-action: none; cursor: grab; }
+  #c.grabbing { cursor: grabbing; }
+
+  #vignette {
+    position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(120% 100% at 50% 42%, transparent 42%, rgba(0,0,0,.55) 100%);
+  }
+
+  #ui { position: fixed; top: 22px; left: 24px; pointer-events: none; }
+  #title { font-weight: 600; letter-spacing: .14em; font-size: 12px; text-transform: uppercase; color: #cfc9bd; }
+  #hint { margin-top: 6px; color: var(--dim); font-size: 12px; }
+
+  #bar {
+    position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+    display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 10px;
+    max-width: calc(100vw - 24px);
+    padding: 8px 10px; border: 1px solid var(--line); border-radius: 14px;
+    background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  }
+  #bar button, #filelabel {
+    appearance: none; border: 1px solid var(--line); background: rgba(255,255,255,.03);
+    color: var(--ink); font: inherit; height: 32px; border-radius: 9px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  #bar #prev, #bar #next, #bar #zoom { width: 38px; font-size: 18px; line-height: 1; }
+  #bar #prev, #bar #next { padding-bottom: 3px; }
+  #bar #zoom { padding: 0; }
+  #bar button:hover, #filelabel:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.2); }
+  #bar button:disabled { opacity: .3; cursor: default; }
+  #pageinfo { min-width: 86px; text-align: center; color: #cfc9bd; font-variant-numeric: tabular-nums; font-size: 12px; letter-spacing: .04em; }
+  #filelabel { padding: 0 12px; font-size: 12px; }
+  #file { display: none; }
+
+  .sep { width: 1px; height: 22px; background: var(--line); }
+  #bar #zoom.on, #bar #sharp.on { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.32); color: #fff; }
+  #bar #sharp { width: auto; padding: 0 13px; font-size: 12px; letter-spacing: .02em; padding-bottom: 0; font-weight: 500; }
+  #panel { display: contents; }
+  #more { display: none; }
+  #templabel, #grainlabel, #zoomlabel { display: inline-flex; align-items: center; gap: 9px; padding: 0 6px 0 10px; font-size: 12px; color: var(--dim); }
+  #temp, #grain, #zoomlevel {
+    -webkit-appearance: none; appearance: none; width: 96px; height: 3px; border-radius: 3px;
+    outline: none; cursor: pointer;
+  }
+  #temp { background: linear-gradient(90deg, #ffb46b, #fff3e0 46%, #bcd4ff); }
+  #grain { background: repeating-linear-gradient(90deg, #6d6a63 0 2px, #b9b3a6 2px 4px, #8b877e 4px 6px); }
+  #zoomlevel { background: linear-gradient(90deg, #6d6a63, #ece7dd); }
+  #temp::-webkit-slider-thumb, #grain::-webkit-slider-thumb, #zoomlevel::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%;
+    background: #ece7dd; border: 2px solid #14151a; box-shadow: 0 1px 4px rgba(0,0,0,.6); cursor: grab;
+  }
+  #temp::-moz-range-thumb, #grain::-moz-range-thumb, #zoomlevel::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #ece7dd; border: 2px solid #14151a; cursor: grab; }
+  #tempval { min-width: 46px; color: #cfc9bd; font-variant-numeric: tabular-nums; }
+  #grainval, #zoomval { min-width: 30px; color: #cfc9bd; font-variant-numeric: tabular-nums; }
+
+  #loader {
+    position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; background: #0a0b0e; z-index: 10; transition: opacity .5s ease;
+  }
+  #loader.hidden { opacity: 0; pointer-events: none; }
+  #track { width: 190px; height: 2px; background: rgba(255,255,255,.12); border-radius: 2px; overflow: hidden; }
+  #barfill { width: 0%; height: 100%; background: #cfc9bd; transition: width .2s ease; }
+  #loadtext { color: var(--dim); font-size: 12px; letter-spacing: .05em; }
+  #err { color: #d98a7a; font-size: 12px; max-width: 420px; text-align: center; display: none; }
+
+  @media (max-width: 640px) {
+    #bar { gap: 6px; padding: 5px 7px; bottom: 10px; border-radius: 12px; flex-wrap: nowrap; }
+    #ui { top: 16px; left: 16px; }
+    #hint { display: none; }
+    #pageinfo { min-width: 58px; font-size: 11px; }
+    #bar #prev, #bar #next, #bar #zoom, #bar #more { width: 34px; height: 30px; }
+    #more { display: inline-flex; }
+
+    #panel {
+      position: absolute; left: 0; right: 0; bottom: calc(100% + 8px);
+      display: none; flex-wrap: wrap; justify-content: center; align-items: center;
+      gap: 10px 12px; padding: 12px;
+      border: 1px solid var(--line); border-radius: 12px;
+      background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.45);
+    }
+    #bar.open #panel { display: flex; }
+    #panel .sep { display: none; }
+    #temp, #grain, #zoomlevel { width: 92px; }
+    #templabel, #grainlabel, #zoomlabel { font-size: 11px; gap: 7px; padding: 0; }
+    #tempval { min-width: 40px; }
+    #grainval, #zoomval { min-width: 26px; }
+    #bar #sharp, #filelabel { padding: 0 10px; font-size: 11px; height: 30px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vignette"></div>
+
+<div id="ui">
+  <div id="title">PdfFlip</div>
+  <div id="hint">Drag a page to flip it — grab the free edge</div>
+</div>
+
+<div id="bar">
+  <button id="prev" title="Previous page (←)">&#8249;</button>
+  <span id="pageinfo">—</span>
+  <button id="next" title="Next page (→)">&#8250;</button>
+  <button id="zoom" title="Zoom (Z)" aria-label="Zoom"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"></circle><line x1="15.6" y1="15.6" x2="21" y2="21"></line></svg></button>
+  <div id="panel">
+    <span class="sep"></span>
+    <label id="templabel">Light<input id="temp" type="range" min="2000" max="10000" step="100" value="4800"><span id="tempval">4800K</span></label>
+    <span class="sep"></span>
+    <label id="grainlabel">Grain<input id="grain" type="range" min="0" max="100" step="1" value="50"><span id="grainval">50</span></label>
+    <span class="sep"></span>
+    <label id="zoomlabel">Zoom<input id="zoomlevel" type="range" min="120" max="500" step="10" value="240"><span id="zoomval">2.4x</span></label>
+    <span class="sep"></span>
+    <button id="sharp" title="Sharpen pages (S)">Sharp</button>
+    <span class="sep"></span>
+    <label id="filelabel">Open PDF<input id="file" type="file" accept="application/pdf"></label>
+  </div>
+  <button id="more" title="More controls" aria-label="More controls"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg></button>
+</div>
+
+<div id="loader">
+  <div id="track"><div id="barfill"></div></div>
+  <div id="loadtext">Loading…</div>
+  <div id="err"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+<script type="module" src="./reader.js"></script>
+</body>
+</html>
