@@ -57,25 +57,25 @@
   #file { display: none; }
 
   .sep { width: 1px; height: 22px; background: var(--line); }
-  #bar #zoom.on, #bar #sharp.on { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.32); color: #fff; }
-  #bar #sharp { width: auto; padding: 0 13px; font-size: 12px; letter-spacing: .02em; padding-bottom: 0; font-weight: 500; }
+  #bar #zoom.on { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.32); color: #fff; }
   #panel { display: contents; }
   #more { display: none; }
-  #templabel, #grainlabel, #zoomlabel { display: inline-flex; align-items: center; gap: 9px; padding: 0 6px 0 10px; font-size: 12px; color: var(--dim); }
-  #temp, #grain, #zoomlevel {
+  #templabel, #grainlabel, #zoomlabel, #sharplabel { display: inline-flex; align-items: center; gap: 9px; padding: 0 6px 0 10px; font-size: 12px; color: var(--dim); }
+  #temp, #grain, #zoomlevel, #sharpen {
     -webkit-appearance: none; appearance: none; width: 96px; height: 3px; border-radius: 3px;
     outline: none; cursor: pointer;
   }
   #temp { background: linear-gradient(90deg, #ffb46b, #fff3e0 46%, #bcd4ff); }
   #grain { background: repeating-linear-gradient(90deg, #6d6a63 0 2px, #b9b3a6 2px 4px, #8b877e 4px 6px); }
   #zoomlevel { background: linear-gradient(90deg, #6d6a63, #ece7dd); }
-  #temp::-webkit-slider-thumb, #grain::-webkit-slider-thumb, #zoomlevel::-webkit-slider-thumb {
+  #sharpen { background: linear-gradient(90deg, #6d6a63, #fff); }
+  #temp::-webkit-slider-thumb, #grain::-webkit-slider-thumb, #zoomlevel::-webkit-slider-thumb, #sharpen::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%;
     background: #ece7dd; border: 2px solid #14151a; box-shadow: 0 1px 4px rgba(0,0,0,.6); cursor: grab;
   }
-  #temp::-moz-range-thumb, #grain::-moz-range-thumb, #zoomlevel::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #ece7dd; border: 2px solid #14151a; cursor: grab; }
+  #temp::-moz-range-thumb, #grain::-moz-range-thumb, #zoomlevel::-moz-range-thumb, #sharpen::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #ece7dd; border: 2px solid #14151a; cursor: grab; }
   #tempval { min-width: 46px; color: #cfc9bd; font-variant-numeric: tabular-nums; }
-  #grainval, #zoomval { min-width: 30px; color: #cfc9bd; font-variant-numeric: tabular-nums; }
+  #grainval, #zoomval, #sharpenval { min-width: 30px; color: #cfc9bd; font-variant-numeric: tabular-nums; }
 
   #loader {
     position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -105,11 +105,11 @@
     }
     #bar.open #panel { display: flex; }
     #panel .sep { display: none; }
-    #temp, #grain, #zoomlevel { width: 92px; }
-    #templabel, #grainlabel, #zoomlabel { font-size: 11px; gap: 7px; padding: 0; }
+    #temp, #grain, #zoomlevel, #sharpen { width: 92px; }
+    #templabel, #grainlabel, #zoomlabel, #sharplabel { font-size: 11px; gap: 7px; padding: 0; }
     #tempval { min-width: 40px; }
-    #grainval, #zoomval { min-width: 26px; }
-    #bar #sharp, #filelabel { padding: 0 10px; font-size: 11px; height: 30px; }
+    #grainval, #zoomval, #sharpenval { min-width: 26px; }
+    #bar #filelabel { padding: 0 10px; font-size: 11px; height: 30px; }
   }
 </style>
 </head>
@@ -135,7 +135,7 @@
     <span class="sep"></span>
     <label id="zoomlabel">Zoom<input id="zoomlevel" type="range" min="120" max="500" step="10" value="240"><span id="zoomval">2.4x</span></label>
     <span class="sep"></span>
-    <button id="sharp" title="Sharpen pages (S)">Sharp</button>
+    <label id="sharplabel">Sharp<input id="sharpen" type="range" min="0" max="100" step="1" value="0"><span id="sharpenval">0</span></label>
     <span class="sep"></span>
     <label id="filelabel">Open PDF<input id="file" type="file" accept="application/pdf"></label>
   </div>

@@ -20,7 +20,6 @@ const TEX_BUDGET = IS_MOBILE ? 12e6 : 26e6;
 const isPortrait = () => window.innerHeight > window.innerWidth;
 let singlePage = IS_MOBILE && isPortrait();
 let curlScale = singlePage ? 0.5 : 1;
-let sharpening = false;
 
 const PHYS = {
   baseK: 75,
@@ -167,6 +166,15 @@ scene.add(contact);
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
+
+const RIPPLE = 0.0013;
+
+function pageRipple(s, z) {
+  return RIPPLE * (
+    Math.sin(s * 4.7 + z * 1.3) * 0.55 +
+    Math.sin(s * 2.1 - z * 2.9) * 0.45
+  );
+}
 
 class Strand {
   constructor(seg, length) {
@@ -317,28 +325,31 @@ function createPageMesh(frontMat, backMat, rimMat) {
       tx /= len; ty /= len;
       const nx = -ty, ny = tx;
       cx[i] = strand.x[i]; cy[i] = strand.y[i]; cnx[i] = nx; cny[i] = ny;
+      const si = i / (n - 1);
       for (let j = 0; j <= row; j++) {
         const z = -depth * 0.5 + depth * (j / row);
+        const rip = pageRipple(si, z);
         const fi = i * (row + 1) + j;
-        pos[fi * 3] = strand.x[i] + nx * hf;
-        pos[fi * 3 + 1] = strand.y[i] + ny * hf;
+        pos[fi * 3] = strand.x[i] + nx * (hf + rip);
+        pos[fi * 3 + 1] = strand.y[i] + ny * (hf + rip);
         pos[fi * 3 + 2] = z;
         const bi = Nv + fi;
-        pos[bi * 3] = strand.x[i] - nx * hf;
-        pos[bi * 3 + 1] = strand.y[i] - ny * hf;
+        pos[bi * 3] = strand.x[i] - nx * (hf - rip);
+        pos[bi * 3 + 1] = strand.y[i] - ny * (hf - rip);
         pos[bi * 3 + 2] = z;
       }
     }
     for (let k = 0; k < B; k++) {
       const i = bnd[k][0], j = bnd[k][1];
       const z = -depth * 0.5 + depth * (j / row);
+      const rip = pageRipple(i / (n - 1), z);
       const fi = 2 * Nv + k;
-      pos[fi * 3] = cx[i] + cnx[i] * hf;
-      pos[fi * 3 + 1] = cy[i] + cny[i] * hf;
+      pos[fi * 3] = cx[i] + cnx[i] * (hf + rip);
+      pos[fi * 3 + 1] = cy[i] + cny[i] * (hf + rip);
       pos[fi * 3 + 2] = z;
       const bi = 2 * Nv + B + k;
-      pos[bi * 3] = cx[i] - cnx[i] * hf;
-      pos[bi * 3 + 1] = cy[i] - cny[i] * hf;
+      pos[bi * 3] = cx[i] - cnx[i] * (hf - rip);
+      pos[bi * 3 + 1] = cy[i] - cny[i] * (hf - rip);
       pos[bi * 3 + 2] = z;
     }
     geom.attributes.position.needsUpdate = true;
@@ -465,27 +476,42 @@ const blankTex = makeBlankTexture();
 const grainTex = makePaperGrainTexture();
 
 const grainUniforms = { strength: { value: 0.3 } };
+const sharpUniform = { amount: { value: 0 } };
 const grainMats = [];
 
 function applyPaperGrain(mat, bumpBase) {
   mat.bumpMap = grainTex;
   mat.bumpScale = bumpBase;
+  mat.userData.paperTexel = new THREE.Vector2(1 / 900, 1 / 1273);
   grainMats.push({ mat, bumpBase });
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.grainMap = { value: grainTex };
     shader.uniforms.grainStrength = grainUniforms.strength;
+    shader.uniforms.sharpenAmount = sharpUniform.amount;
+    shader.uniforms.paperTexel = mat.userData.paperTexel;
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
-        '#include <common>\nuniform sampler2D grainMap;\nuniform float grainStrength;'
+        '#include <common>\nuniform sampler2D grainMap;\nuniform float grainStrength;\nuniform float sharpenAmount;\nuniform vec2 paperTexel;'
       )
       .replace(
         '#include <map_fragment>',
-        '#include <map_fragment>\n#ifdef USE_MAP\n  float paperGrain = texture2D(grainMap, vMapUv * vec2(1.7, 2.4)).g;\n  diffuseColor.rgb *= 1.0 + grainStrength * (paperGrain - 0.5) * 2.0;\n#endif'
+        '#include <map_fragment>\n#ifdef USE_MAP\n'
+        + '  if (sharpenAmount > 0.001) {\n'
+        + '    vec3 sc = diffuseColor.rgb;\n'
+        + '    vec3 sb = texture2D(map, vMapUv + vec2(paperTexel.x, 0.0)).rgb\n'
+        + '            + texture2D(map, vMapUv - vec2(paperTexel.x, 0.0)).rgb\n'
+        + '            + texture2D(map, vMapUv + vec2(0.0, paperTexel.y)).rgb\n'
+        + '            + texture2D(map, vMapUv - vec2(0.0, paperTexel.y)).rgb;\n'
+        + '    diffuseColor.rgb = sc + sharpenAmount * (sc - sb * 0.25);\n'
+        + '  }\n'
+        + '  float paperGrain = texture2D(grainMap, vMapUv * vec2(1.7, 2.4)).g;\n'
+        + '  diffuseColor.rgb *= 1.0 + grainStrength * (paperGrain - 0.5) * 2.0;\n'
+        + '#endif'
       )
       .replace(
         '#include <roughnessmap_fragment>',
-        '#include <roughnessmap_fragment>\n#ifdef USE_MAP\n  roughnessFactor = clamp(roughnessFactor - grainStrength * 0.35 * (paperGrain - 0.5) * 2.0, 0.25, 1.0);\n#endif'
+        '#include <roughnessmap_fragment>\n#ifdef USE_MAP\n  roughnessFactor = clamp(roughnessFactor - grainStrength * 0.5 * (paperGrain - 0.5) * 2.0, 0.2, 1.0);\n#endif'
       );
   };
 }
@@ -507,6 +533,9 @@ function applyTex(pageIdx, tex) {
   for (const m of set) {
     m.map = tex;
     m.needsUpdate = true;
+    if (m.userData.paperTexel && tex.image && tex.image.width) {
+      m.userData.paperTexel.value.set(1 / tex.image.width, 1 / tex.image.height);
+    }
   }
 }
 
@@ -538,7 +567,7 @@ function desiredTexWidth() {
 }
 
 function makeTexture(canvasEl) {
-  const t = new THREE.CanvasTexture(sharpening ? sharpenCanvas(canvasEl, 0.65) : canvasEl);
+  const t = new THREE.CanvasTexture(canvasEl);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = renderer.capabilities.getMaxAnisotropy();
   t.minFilter = THREE.LinearMipmapLinearFilter;
@@ -643,9 +672,9 @@ function newLeaf(frontIdx, backIdx) {
     side: THREE.DoubleSide,
     transparent: singlePage,
   });
-  applyPaperGrain(frontMat, 0.012);
-  applyPaperGrain(backMat, 0.012);
-  applyPaperGrain(rimMat, 0.007);
+  applyPaperGrain(frontMat, 0.02);
+  applyPaperGrain(backMat, 0.02);
+  applyPaperGrain(rimMat, 0.012);
   const mesh = createPageMesh(frontMat, backMat, rimMat);
   const strand = new Strand(CFG.seg, CFG.pageW);
   scene.add(mesh);
@@ -996,19 +1025,16 @@ function toggleZoom() {
 }
 zoomBtn.addEventListener('click', toggleZoom);
 
-const sharpBtn = document.getElementById('sharp');
+const sharpenInput = document.getElementById('sharpen');
+const sharpenVal = document.getElementById('sharpenval');
 
-function setSharpening(on) {
-  if (on === sharpening) return;
-  sharpening = on;
-  sharpBtn.classList.toggle('on', on);
-  if (pageSource) {
-    const want = desiredTexWidth();
-    for (const [idx, entry] of [...texCache.entries()]) reTexture(idx, entry, want);
-  }
+function setSharpness(v) {
+  sharpUniform.amount.value = 0.014 * v;
+  sharpenVal.textContent = `${Math.round(v)}`;
+  if (sharpenInput.value !== String(v)) sharpenInput.value = String(v);
   invalidate();
 }
-sharpBtn.addEventListener('click', () => setSharpening(!sharpening));
+sharpenInput.addEventListener('input', () => setSharpness(parseFloat(sharpenInput.value)));
 
 const zoomInput = document.getElementById('zoomlevel');
 const zoomVal = document.getElementById('zoomval');
@@ -1237,7 +1263,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft') startAutoTurn(-1);
   else if (e.key === 'ArrowRight') startAutoTurn(1);
   else if (e.key === 'z' || e.key === 'Z') toggleZoom();
-  else if (e.key === 's' || e.key === 'S') setSharpening(!sharpening);
+  else if (e.key === 's' || e.key === 'S') setSharpness(sharpUniform.amount.value > 0.001 ? 0 : 60);
 });
 
 function updateHUD() {
@@ -1289,44 +1315,6 @@ function buildBook(count) {
   renderer.shadowMap.needsUpdate = true;
   lodDirty = true;
   invalidate();
-}
-
-function sharpenCanvas(src, amount) {
-  const w = src.width, h = src.height;
-  const s = src.getContext('2d').getImageData(0, 0, w, h).data;
-  const tmp = new Float32Array(w * h * 3);
-  for (let y = 0; y < h; y++) {
-    const row = y * w;
-    for (let x = 0; x < w; x++) {
-      const i = (row + x) * 4;
-      const a = (row + (x > 0 ? x - 1 : x)) * 4;
-      const b = (row + (x < w - 1 ? x + 1 : x)) * 4;
-      const o = (row + x) * 3;
-      tmp[o] = s[a] + s[i] + s[b];
-      tmp[o + 1] = s[a + 1] + s[i + 1] + s[b + 1];
-      tmp[o + 2] = s[a + 2] + s[i + 2] + s[b + 2];
-    }
-  }
-  const out = document.createElement('canvas');
-  out.width = w; out.height = h;
-  const octx = out.getContext('2d');
-  const oimg = octx.createImageData(w, h);
-  const o = oimg.data;
-  for (let y = 0; y < h; y++) {
-    const ym = (y > 0 ? y - 1 : y) * w;
-    const yc = y * w;
-    const yp = (y < h - 1 ? y + 1 : y) * w;
-    for (let x = 0; x < w; x++) {
-      const i = (yc + x) * 4;
-      const o1 = (ym + x) * 3, o2 = (yc + x) * 3, o3 = (yp + x) * 3;
-      o[i] = clamp(s[i] + amount * (s[i] - (tmp[o1] + tmp[o2] + tmp[o3]) / 9), 0, 255);
-      o[i + 1] = clamp(s[i + 1] + amount * (s[i + 1] - (tmp[o1 + 1] + tmp[o2 + 1] + tmp[o3 + 1]) / 9), 0, 255);
-      o[i + 2] = clamp(s[i + 2] + amount * (s[i + 2] - (tmp[o1 + 2] + tmp[o2 + 2] + tmp[o3 + 2]) / 9), 0, 255);
-      o[i + 3] = s[i + 3];
-    }
-  }
-  octx.putImageData(oimg, 0, 0);
-  return out;
 }
 
 function makePdfSource(pdf) {
@@ -1547,5 +1535,6 @@ function animate(t) {
 setTemperature(parseInt(tempInput.value, 10));
 setGrain(parseFloat(grainInput.value));
 setZoomLevel(parseFloat(zoomInput.value) / 100);
+setSharpness(parseFloat(sharpenInput.value));
 init();
 requestAnimationFrame(animate);
