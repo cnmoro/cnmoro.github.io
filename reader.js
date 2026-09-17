@@ -917,8 +917,8 @@ function cursorWorldFit(base) {
   return { x: base.x + pointer.x * halfW, z: -pointer.y * halfH };
 }
 
-function viewWidthPx() { return canvas.clientWidth || window.innerWidth; }
-function viewHeightPx() { return canvas.clientHeight || window.innerHeight; }
+function viewWidthPx() { return document.documentElement.clientWidth || window.innerWidth || 1; }
+function viewHeightPx() { return document.documentElement.clientHeight || window.innerHeight || 1; }
 
 function worldPerPixel() {
   return (2 * view.dist * halfTan()) / viewHeightPx();
