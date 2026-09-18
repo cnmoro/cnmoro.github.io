@@ -1179,9 +1179,22 @@ const bar = document.getElementById('bar');
 const moreBtn = document.getElementById('more');
 
 function setZoomLevel(v) {
-  zoomLevel = clamp(v, 1.2, 5);
+  zoomLevel = clamp(v, 1, 5);
   zoomVal.textContent = `${zoomLevel.toFixed(1)}x`;
-  if (zoomed) zoomScale = 1 / zoomLevel;
+  if (zoomLevel <= 1.001) {
+    if (zoomed) resetView();
+    invalidate();
+    return;
+  }
+  if (!zoomed) {
+    zoomed = true;
+    zoomBtn.classList.add('on');
+    const base = baseFraming();
+    const w = singlePage ? { x: base.x, z: 0 } : cursorWorldFit(base);
+    focus.x = w.x;
+    focus.z = w.z;
+  }
+  zoomScale = 1 / zoomLevel;
   invalidate();
 }
 zoomInput.addEventListener('input', () => setZoomLevel(parseFloat(zoomInput.value) / 100));
